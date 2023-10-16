@@ -22,7 +22,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-
+using Intersect.Client.Framework.Database;
 using Intersect.Utilities;
 
 using MainMenu = Intersect.Client.Interface.Menu.MainMenu;
@@ -82,23 +82,24 @@ namespace Intersect.Client.MonoGame
             {
                 PreferredBackBufferWidth = 800,
                 PreferredBackBufferHeight = 480,
-                PreferHalfPixelOffset = true
+                PreferHalfPixelOffset = true,
+                PreferMultiSampling = true,
             };
 
-            mGraphics.PreparingDeviceSettings += (s, args) =>
+            mGraphics.PreparingDeviceSettings += (_, args) =>
             {
                 args.GraphicsDeviceInformation.PresentationParameters.RenderTargetUsage =
                     RenderTargetUsage.PreserveContents;
+                args.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = 16;
             };
 
             Content.RootDirectory = "";
             IsMouseVisible = true;
             Globals.ContentManager = new MonoContentManager();
-            Globals.Database = new MonoDatabase();
+            Globals.Database = new JsonDatabase();
 
-            /* Load configuration */
+            // Load configuration.
             ClientConfiguration.LoadAndSave(ClientConfiguration.DefaultPath);
-
             Globals.Database.LoadPreferences();
 
             Window.IsBorderless = Context.StartupOptions.BorderlessWindow;
@@ -117,19 +118,31 @@ namespace Intersect.Client.MonoGame
             Interface.Interface.GwenInput = new IntersectInput();
             Controls.Init();
 
-            Window.Position = new Microsoft.Xna.Framework.Point(-20, -2000);
+            // Windows
+            Window.Position = new Microsoft.Xna.Framework.Point(
+                renderer.ScreenWidth - renderer.ActiveResolution.X,
+                renderer.ScreenHeight - renderer.ActiveResolution.Y
+            ) / new Microsoft.Xna.Framework.Point(2);
             Window.AllowAltF4 = false;
 
+            // Store frequently used property values in local variables.
+            string mouseCursor = ClientConfiguration.Instance.MouseCursor;
+            string updateUrl = ClientConfiguration.Instance.UpdateUrl;
+
             // If we're going to be rendering a custom mouse cursor, hide the default one!
-            if (!string.IsNullOrWhiteSpace(ClientConfiguration.Instance.MouseCursor))
+            if (!string.IsNullOrWhiteSpace(mouseCursor))
             {
                 IsMouseVisible = false;
             }
-            
-            if (!string.IsNullOrWhiteSpace(ClientConfiguration.Instance.UpdateUrl))
+
+            // Reuse Updater object instead of creating a new one each time.
+            if (!string.IsNullOrWhiteSpace(updateUrl))
             {
                 mUpdater = new Updater.Updater(
-                    ClientConfiguration.Instance.UpdateUrl, Path.Combine("version.json"), true, 5
+                    updateUrl,
+                    Path.Combine("version.json"),
+                    true,
+                    5
                 );
             }
         }
@@ -146,8 +159,6 @@ namespace Intersect.Client.MonoGame
 
             if (mUpdater != null)
             {
-                LoadUpdaterContent();
-
                 //Set the size of the updater screen before applying graphic changes.
                 //We need to do this here instead of in the constructor for the size change to apply to Linux
                 mGraphics.PreferredBackBufferWidth = 800;
@@ -253,6 +264,16 @@ namespace Intersect.Client.MonoGame
             base.Update(gameTime);
         }
 
+        protected override void LoadContent()
+        {
+            base.LoadContent();
+
+            if (mUpdater != null)
+            {
+                LoadUpdaterContent();
+            }
+        }
+
         /// <summary>
         ///     This is called when the game should draw itself.
         /// </summary>
@@ -287,7 +308,7 @@ namespace Intersect.Client.MonoGame
                 {
                     lock (Globals.GameLock)
                     {
-                        Core.Graphics.Render(gameTime.ElapsedGameTime);
+                        Core.Graphics.Render(gameTime.ElapsedGameTime, gameTime.TotalGameTime);
                     }
                 }
             }
@@ -394,7 +415,7 @@ namespace Intersect.Client.MonoGame
                 case UpdateStatus.Updating:
                     status = Strings.Update.Updating;
                     progressPercent = mUpdater.Progress / 100f;
-                    progress = Strings.Update.Percent.ToString((int) mUpdater.Progress);
+                    progress = Strings.Update.Percent.ToString((int)mUpdater.Progress);
                     filesRemaining = Strings.Update.Files.ToString(mUpdater.FilesRemaining);
                     sizeRemaining = Strings.Update.Size.ToString(mUpdater.GetHumanReadableFileSize(mUpdater.SizeRemaining));
                     break;
@@ -437,10 +458,10 @@ namespace Intersect.Client.MonoGame
             if (updaterProgressBar != null)
             {
                 updateBatch.Draw(
-                    updaterProgressBar, new Rectangle(100, 400, (int) (600 * progressPercent), 32),
+                    updaterProgressBar, new Rectangle(100, 400, (int)(600 * progressPercent), 32),
                     new Rectangle?(
                         new Rectangle(
-                            0, 0, (int) (updaterProgressBar.Width * progressPercent), updaterProgressBar.Height
+                            0, 0, (int)(updaterProgressBar.Width * progressPercent), updaterProgressBar.Height
                         )
                     ), Microsoft.Xna.Framework.Color.White
                 );

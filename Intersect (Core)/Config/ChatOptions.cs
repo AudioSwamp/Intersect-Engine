@@ -1,13 +1,16 @@
 ﻿namespace Intersect.Config
 {
-
     public partial class ChatOptions
     {
+        /// <summary>
+        /// The maximum length of a chat message in characters.
+        /// </summary>
+        public int MaxChatLength = 120;
 
-        //Chat
-        public int MaxChatLength = 120; //120 characters
-
-        public int MinIntervalBetweenChats = 400; //400 ms
+        /// <summary>
+        /// The minimum amount of time (in milliseconds) between sending chat messages.
+        /// </summary>
+        public int MinIntervalBetweenChats = 400;
 
         /// <summary>
         /// Is the client allowed to show in-game banners for announcements made?
@@ -19,5 +22,4 @@
         /// </summary>
         public int AnnouncementDisplayDuration = 5000;
     }
-
 }

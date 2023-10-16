@@ -1,5 +1,4 @@
 using System;
-
 using Intersect.Admin.Actions;
 using Intersect.Client.Core.Controls;
 using Intersect.Client.Framework.GenericClasses;
@@ -10,12 +9,10 @@ using Intersect.Client.Interface;
 using Intersect.Client.Interface.Game;
 using Intersect.Client.Maps;
 using Intersect.Client.Networking;
-using Intersect.Logging;
 using Intersect.Utilities;
 
 namespace Intersect.Client.Core
 {
-
     public static partial class Input
     {
 
@@ -28,6 +25,24 @@ namespace Intersect.Client.Core
         public static HandleKeyEvent MouseDown;
 
         public static HandleKeyEvent MouseUp;
+
+        private static void HandleZoomOut()
+        {
+            Globals.Database.WorldZoom /= 2;
+            if (Globals.Database.WorldZoom < Graphics.BaseWorldScale)
+            {
+                Globals.Database.WorldZoom = Graphics.BaseWorldScale * 4;
+            }
+        }
+
+        private static void HandleZoomIn()
+        {
+            Globals.Database.WorldZoom *= 2;
+            if (Globals.Database.WorldZoom > Graphics.BaseWorldScale * 4)
+            {
+                Globals.Database.WorldZoom = Graphics.BaseWorldScale;
+            }
+        }
 
         public static void OnKeyPressed(Keys modifier, Keys key)
         {
@@ -147,6 +162,29 @@ namespace Intersect.Client.Core
                                 }
 
                                 break;
+
+                            case Control.HoldToZoomIn:
+                            case Control.ToggleZoomIn:
+                            {
+                                HandleZoomIn();
+                                break;
+                            }
+
+                            case Control.HoldToZoomOut:
+                            case Control.ToggleZoomOut:
+                            {
+                                HandleZoomOut();
+                                break;
+                            }
+
+                            case Control.ToggleFullscreen:
+                            {
+                                Globals.Database.FullScreen = !Globals.Database.FullScreen;
+                                Globals.Database.SavePreferences();
+                                Graphics.Renderer.OverrideResolution = Resolution.Empty;
+                                Graphics.Renderer.Init();
+                                break;
+                            }
 
                             case Control.OpenDebugger:
                                 MutableInterface.ToggleDebug();
@@ -286,6 +324,16 @@ namespace Intersect.Client.Core
                 return;
             }
 
+            if (Controls.Controls.ControlHasKey(Control.HoldToZoomIn, modifier, key))
+            {
+                HandleZoomOut();
+            }
+
+            if (Controls.Controls.ControlHasKey(Control.HoldToZoomOut, modifier, key))
+            {
+                HandleZoomIn();
+            }
+
             if (Globals.Me == null)
             {
                 return;
@@ -311,6 +359,14 @@ namespace Intersect.Client.Core
                     key = Keys.MButton;
 
                     break;
+                case MouseButtons.X1:
+                    key = Keys.XButton1;
+
+                    break;
+                case MouseButtons.X2:
+                    key = Keys.XButton2;
+
+                    break;
             }
 
             MouseDown?.Invoke(modifier, key);
@@ -334,7 +390,7 @@ namespace Intersect.Client.Core
                 return;
             }
 
-            if (Globals.Me.TryTarget())
+            if (modifier == Keys.None && btn == MouseButtons.Left && Globals.Me.TryTarget())
             {
                 return;
             }
@@ -346,9 +402,9 @@ namespace Intersect.Client.Core
                     return;
                 }
 
-                if (Globals.Me.AttackTimer < Timing.Global.Ticks / TimeSpan.TicksPerMillisecond)
+                if (!Globals.Me.IsAttacking)
                 {
-                    Globals.Me.AttackTimer = Timing.Global.Ticks / TimeSpan.TicksPerMillisecond + Globals.Me.CalculateAttackTime();
+                    Globals.Me.AttackTimer = Timing.Global.Milliseconds + Globals.Me.CalculateAttackTime();
                 }
             }
 
@@ -380,12 +436,30 @@ namespace Intersect.Client.Core
                     key = Keys.MButton;
 
                     break;
+                case MouseButtons.X1:
+                    key = Keys.XButton1;
+
+                    break;
+                case MouseButtons.X2:
+                    key = Keys.XButton2;
+
+                    break;
             }
 
             MouseUp?.Invoke(modifier, key);
             if (Interface.Interface.HasInputFocus())
             {
                 return;
+            }
+
+            if (Controls.Controls.ControlHasKey(Control.HoldToZoomIn, modifier, key))
+            {
+                HandleZoomOut();
+            }
+
+            if (Controls.Controls.ControlHasKey(Control.HoldToZoomOut, modifier, key))
+            {
+                HandleZoomIn();
             }
 
             if (Globals.Me == null)
@@ -403,8 +477,9 @@ namespace Intersect.Client.Core
                 return;
             }
 
-            var x = (int) Math.Floor(Globals.InputManager.GetMousePosition().X + Graphics.CurrentView.Left);
-            var y = (int) Math.Floor(Globals.InputManager.GetMousePosition().Y + Graphics.CurrentView.Top);
+            var mouseInWorld = Graphics.ConvertToWorldPoint(Globals.InputManager.GetMousePosition());
+            var x = (int)mouseInWorld.X;
+            var y = (int)mouseInWorld.Y;
 
             foreach (MapInstance map in MapInstance.Lookup.Values)
             {

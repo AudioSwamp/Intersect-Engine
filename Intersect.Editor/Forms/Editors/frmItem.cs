@@ -38,7 +38,7 @@ namespace Intersect.Editor.Forms.Editors
         {
             ApplyHooks();
             InitializeComponent();
-            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            Icon = Program.Icon;
 
             cmbEquipmentSlot.Items.Clear();
             cmbEquipmentSlot.Items.AddRange(Options.EquipmentSlots.ToArray());
@@ -122,7 +122,7 @@ namespace Intersect.Editor.Forms.Editors
             cmbAttackAnimation.Items.Add(Strings.General.None);
             cmbAttackAnimation.Items.AddRange(AnimationBase.Names);
             cmbScalingStat.Items.Clear();
-            for (var x = 0; x < (int)Stats.StatCount; x++)
+            for (var x = 0; x < (int)Stat.StatCount; x++)
             {
                 cmbScalingStat.Items.Add(Globals.GetStatName(x));
             }
@@ -205,6 +205,8 @@ namespace Intersect.Editor.Forms.Editors
             chkCanBag.Text = Strings.ItemEditor.CanBag;
             chkCanTrade.Text = Strings.ItemEditor.CanTrade;
             chkCanSell.Text = Strings.ItemEditor.CanSell;
+
+            grpStack.Text = Strings.ItemEditor.StackOptions;
             chkStackable.Text = Strings.ItemEditor.stackable;
             lblInvStackLimit.Text = Strings.ItemEditor.InventoryStackLimit;
             lblBankStackLimit.Text = Strings.ItemEditor.BankStackLimit;
@@ -247,6 +249,7 @@ namespace Intersect.Editor.Forms.Editors
             lblProjectile.Text = Strings.ItemEditor.projectile;
             lblToolType.Text = Strings.ItemEditor.tooltype;
 
+            grpCooldown.Text = Strings.ItemEditor.CooldownOptions;
             lblCooldown.Text = Strings.ItemEditor.cooldown;
             lblCooldownGroup.Text = Strings.ItemEditor.CooldownGroup;
             chkIgnoreGlobalCooldown.Text = Strings.ItemEditor.IgnoreGlobalCooldown;
@@ -293,7 +296,7 @@ namespace Intersect.Editor.Forms.Editors
             lblVital.Text = Strings.ItemEditor.vital;
             lblInterval.Text = Strings.ItemEditor.consumeamount;
             cmbConsume.Items.Clear();
-            for (var i = 0; i < (int) Vitals.VitalCount; i++)
+            for (var i = 0; i < (int) Vital.VitalCount; i++)
             {
                 cmbConsume.Items.Add(Strings.Combat.vitals[i]);
             }
@@ -388,7 +391,7 @@ namespace Intersect.Editor.Forms.Editors
                 cmbFemalePaperdoll.SelectedIndex =
                     cmbFemalePaperdoll.FindString(TextUtils.NullToNone(mEditorItem.FemalePaperdoll));
 
-                if (mEditorItem.ItemType == ItemTypes.Consumable)
+                if (mEditorItem.ItemType == ItemType.Consumable)
                 {
                     cmbConsume.SelectedIndex = (int) mEditorItem.Consumable.Type;
                     nudInterval.Value = mEditorItem.Consumable.Value;
@@ -470,27 +473,27 @@ namespace Intersect.Editor.Forms.Editors
                 mEditorItem.Event = null;
             }
 
-            if (cmbType.SelectedIndex == (int) ItemTypes.Consumable)
+            if (cmbType.SelectedIndex == (int) ItemType.Consumable)
             {
                 cmbConsume.SelectedIndex = (int) mEditorItem.Consumable.Type;
                 nudInterval.Value = mEditorItem.Consumable.Value;
                 nudIntervalPercentage.Value = mEditorItem.Consumable.Percentage;
                 grpConsumable.Visible = true;
             }
-            else if (cmbType.SelectedIndex == (int) ItemTypes.Spell)
+            else if (cmbType.SelectedIndex == (int) ItemType.Spell)
             {
                 cmbTeachSpell.SelectedIndex = SpellBase.ListIndex(mEditorItem.SpellId) + 1;
                 chkQuickCast.Checked = mEditorItem.QuickCast;
                 chkSingleUseSpell.Checked = mEditorItem.SingleUse;
                 grpSpell.Visible = true;
             }
-            else if (cmbType.SelectedIndex == (int) ItemTypes.Event)
+            else if (cmbType.SelectedIndex == (int) ItemType.Event)
             {
                 cmbEvent.SelectedIndex = EventBase.ListIndex(mEditorItem.EventId) + 1;
                 chkSingleUseEvent.Checked = mEditorItem.SingleUse;
                 grpEvent.Visible = true;
             }
-            else if (cmbType.SelectedIndex == (int) ItemTypes.Equipment)
+            else if (cmbType.SelectedIndex == (int) ItemType.Equipment)
             {
                 grpEquipment.Visible = true;
                 if (mEditorItem.EquipmentSlot < -1 || mEditorItem.EquipmentSlot >= cmbEquipmentSlot.Items.Count)
@@ -506,7 +509,7 @@ namespace Intersect.Editor.Forms.Editors
 
                 RefreshBonusList();
             }
-            else if (cmbType.SelectedIndex == (int) ItemTypes.Bag)
+            else if (cmbType.SelectedIndex == (int) ItemType.Bag)
             {
                 // Cant have no space or negative space.
                 mEditorItem.SlotCount = Math.Max(1, mEditorItem.SlotCount);
@@ -517,14 +520,14 @@ namespace Intersect.Editor.Forms.Editors
                 chkStackable.Checked = false;
                 chkStackable.Enabled = false;
             }
-            else if (cmbType.SelectedIndex == (int)ItemTypes.Currency)
+            else if (cmbType.SelectedIndex == (int)ItemType.Currency)
             {
                 // Whether this item type is stackable is not up for debate.
                 chkStackable.Checked = true;
                 chkStackable.Enabled = false;
             }
 
-            mEditorItem.ItemType = (ItemTypes) cmbType.SelectedIndex;
+            mEditorItem.ItemType = (ItemType) cmbType.SelectedIndex;
         }
 
         private void cmbType_SelectedIndexChanged(object sender, EventArgs e)
@@ -973,12 +976,12 @@ namespace Intersect.Editor.Forms.Editors
 
         private void chkSingleUse_CheckedChanged(object sender, EventArgs e)
         {
-            switch ((ItemTypes)cmbType.SelectedIndex)
+            switch ((ItemType)cmbType.SelectedIndex)
             {
-                case ItemTypes.Spell:
+                case ItemType.Spell:
                     mEditorItem.SingleUse = chkSingleUseSpell.Checked;
                     break;
-                case ItemTypes.Event:
+                case ItemType.Event:
                     mEditorItem.SingleUse = chkSingleUseEvent.Checked;
                     break;
             }
@@ -1315,7 +1318,7 @@ namespace Intersect.Editor.Forms.Editors
             var idx = 1;
             foreach (var effectName in Strings.ItemEditor.bonuseffects.Skip(1))
             {
-                lstBonusEffects.Items.Add(GetBonusEffectRow((EffectType)idx));
+                lstBonusEffects.Items.Add(GetBonusEffectRow((ItemEffect)idx));
                 idx++;
             }
         }
@@ -1325,15 +1328,15 @@ namespace Intersect.Editor.Forms.Editors
             get => lstBonusEffects.SelectedIndex > -1 && lstBonusEffects.SelectedIndex < lstBonusEffects.Items.Count;
         }
 
-        private EffectType SelectedEffect
+        private ItemEffect SelectedEffect
         {
-            get => IsValidBonusSelection ? (EffectType)(lstBonusEffects.SelectedIndex + 1) : EffectType.None;
+            get => IsValidBonusSelection ? (ItemEffect)(lstBonusEffects.SelectedIndex + 1) : ItemEffect.None;
         }
 
-        private string GetBonusEffectRow(EffectType effectType)
+        private string GetBonusEffectRow(ItemEffect itemEffect)
         {
-            var effectName = Strings.ItemEditor.bonuseffects[(int)effectType];
-            var effectAmt = mEditorItem.GetEffectPercentage(effectType);
+            var effectName = Strings.ItemEditor.bonuseffects[(int)itemEffect];
+            var effectAmt = mEditorItem.GetEffectPercentage(itemEffect);
             return Strings.ItemEditor.BonusEffectItem.ToString(effectName, effectAmt);
         }
 

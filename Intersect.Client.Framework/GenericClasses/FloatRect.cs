@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace Intersect.Client.Framework.GenericClasses
 {
@@ -38,6 +39,26 @@ namespace Intersect.Client.Framework.GenericClasses
             set => mHeight = value;
         }
 
+        public Pointf Position
+        {
+            get => new Pointf(X, Y);
+            set
+            {
+                X = value.X;
+                Y = value.Y;
+            }
+        }
+
+        public Pointf Size
+        {
+            get => new Pointf(Width, Height);
+            set
+            {
+                Width = value.X;
+                Height = value.Y;
+            }
+        }
+
         public float Left => X;
 
         public float Top => Y;
@@ -55,6 +76,8 @@ namespace Intersect.Client.Framework.GenericClasses
             mWidth = w;
             mHeight = h;
         }
+
+        public FloatRect(Pointf position, Pointf size) : this(position.X, position.Y, size.X, size.Y) { }
 
         public static FloatRect Intersect(FloatRect a, FloatRect b)
         {
@@ -116,6 +139,34 @@ namespace Intersect.Client.Framework.GenericClasses
             return Contains(pt.X, pt.Y);
         }
 
-    }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FloatRect operator *(FloatRect lhs, float rhs)
+        {
+            return new FloatRect(
+                lhs.X * rhs,
+                lhs.Y * rhs,
+                lhs.Width * rhs,
+                lhs.Height * rhs
+            );
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FloatRect operator *(float lhs, FloatRect rhs) => rhs * lhs;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FloatRect operator /(FloatRect lhs, float rhs)
+        {
+            return new FloatRect(
+                lhs.X / rhs,
+                lhs.Y / rhs,
+                lhs.Width / rhs,
+                lhs.Height / rhs
+            );
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static FloatRect operator /(float lhs, FloatRect rhs) => rhs / lhs;
+
+        public override string ToString() => $"{Left},{Top} + {Width},{Height} -> {Right},{Bottom}";
+    }
 }

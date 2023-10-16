@@ -1,5 +1,4 @@
 using Intersect.Enums;
-using Intersect.ErrorHandling;
 using Intersect.GameObjects;
 using Intersect.GameObjects.Crafting;
 using Intersect.GameObjects.Events;
@@ -22,16 +21,16 @@ using Intersect.Server.Entities;
 using Intersect.Server.General;
 using Intersect.Server.Localization;
 using Intersect.Server.Maps;
-using Intersect.Server.Networking.Lidgren;
+using Intersect.Server.Networking.LiteNetLib;
 using Intersect.Server.Notifications;
 using Intersect.Utilities;
-
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
+using Intersect.Network.Packets.Editor;
+using LoginPacket = Intersect.Network.Packets.Client.LoginPacket;
+using NeedMapPacket = Intersect.Network.Packets.Client.NeedMapPacket;
+using PingPacket = Intersect.Network.Packets.Client.PingPacket;
 
 namespace Intersect.Server.Networking
 {
@@ -75,6 +74,11 @@ namespace Intersect.Server.Networking
             if (!Registry.TryRegisterAvailableMethodHandlers(GetType(), this, false) || Registry.IsEmpty)
             {
                 throw new InvalidOperationException("Failed to register method handlers, see logs for more details.");
+            }
+
+            if (!Registry.TryRegisterAvailableTypeHandlers(GetType().Assembly))
+            {
+                throw new InvalidOperationException("Failed to register type handlers, see logs for more details.");
             }
 
             Instance = this;
@@ -181,7 +185,7 @@ namespace Intersect.Server.Networking
             {
                 if (client.PacketFloodDetect)
                 {
-                    //Log.Error(string.Format("Possible Flood Detected: Packets in last second {00} [User: {01} | Player: {02} | IP {03}]", client.PacketCount, client?.User?.Name ?? "", client?.Entity?.Name ?? "", client.GetIp()));
+                    Log.Diagnostic(string.Format("Possible Flood Detected: Packets in last second {00} [User: {01} | Player: {02} | IP {03}]", client.PacketCount, client?.User?.Name ?? "", client?.Entity?.Name ?? "", client.GetIp()));
                 }
 
                 client.PacketCount = 0;
@@ -274,9 +278,6 @@ namespace Intersect.Server.Networking
             if (packet is AbstractTimedPacket timedPacket)
             {
                 var ping = connection.Statistics.Ping;
-                var ncPing = (long) Math.Ceiling(
-                    (connection as LidgrenConnection).NetConnection.AverageRoundtripTime * 1000
-                );
 
                 var localAdjusted = Timing.Global.Ticks;
                 var localAdjustedMs = localAdjusted / TimeSpan.TicksPerMillisecond;
@@ -340,7 +341,7 @@ namespace Intersect.Server.Networking
                 {
                     Log.Debug(
                         "\n\t" +
-                        $"Ping[Connection={ping}, NetConnection={ncPing}, Error={Math.Abs(ncPing - ping)}]\n\t" +
+                        $"Ping[Connection={ping}, Error={Math.Abs(ping)}]\n\t" +
                         $"Error[G={Math.Abs(localAdjustedMs - remoteAdjustedMs)}, R={Math.Abs(localUtcMs - remoteUtcMs)}, O={Math.Abs(localOffsetMs - remoteOffsetMs)}]\n\t" +
                         $"Delta[Adjusted={deltaAdjusted}, AWP={deltaWithPing}, AWEN={deltaWithErrorMinimum}, AWEX={deltaWithErrorMaximum}]\n\t" +
                         $"Natural[A={natural} WP={naturalWithPing}, WEN={naturalWithErrorMinimum}, WEX={naturalWithErrorMaximum}]\n\t" +
@@ -589,7 +590,7 @@ namespace Intersect.Server.Networking
 
             UserActivityHistory.LogActivity(user?.Id ?? Guid.Empty, Guid.Empty, client?.GetIp(), UserActivityHistory.PeerType.Client, UserActivityHistory.UserAction.Login, null);
 
-            PacketSender.SendServerConfig(client);
+            // PacketSender.SendServerConfig(client); // TODO: We already send this when the client is initialized, why do we send it again here?
 
             //Check if we already have a player online/stuck in combat.. if so we will login straight to him
             foreach (var chr in client.Characters)
@@ -604,42 +605,51 @@ namespace Intersect.Server.Networking
                 }
             }
 
-            //Otherwise proceed with login normally...
-            if (Options.MaxCharacters > 1)
-            {
-                PacketSender.SendPlayerCharacters(client);
-            }
-            else if (client.Characters?.Count > 0)
-            {
-                client.LoadCharacter(client.Characters.First());
-                client.Entity.SetOnline();
-
-                PacketSender.SendJoinGame(client);
-            }
-            else
+            // Send newly accounts with 0 characters thru the character creation menu.
+            if (client.Characters?.Count < 1)
             {
                 PacketSender.SendGameObjects(client, GameObjectType.Class);
                 PacketSender.SendCreateCharacter(client);
+                return;
+            }
+
+            // Show character select menu or login right away by following configuration preferences.
+            if (Options.MaxCharacters > 1 || !Options.Instance.PlayerOpts.SkipCharacterSelect)
+            {
+                PacketSender.SendPlayerCharacters(client);
+            }
+            else
+            {
+                client.LoadCharacter(client.Characters?.First());
+                client.Entity.SetOnline();
+                PacketSender.SendJoinGame(client);
             }
         }
 
         //LogoutPacket
         public void HandlePacket(Client client, LogoutPacket packet)
         {
-            if (client != null)
+            if (client == null)
             {
-                UserActivityHistory.LogActivity(client?.User?.Id ?? Guid.Empty, Guid.Empty, client?.GetIp(), UserActivityHistory.PeerType.Client, packet.ReturningToCharSelect ? UserActivityHistory.UserAction.SwitchPlayer : UserActivityHistory.UserAction.DisconnectLogout, $"{client?.Name},{client?.Entity?.Name}");
+                return;
+            }
 
-                if (Options.MaxCharacters > 1 && packet.ReturningToCharSelect)
-                {
-                    client.Entity?.TryLogout(false, true);
-                    client.Entity = null;
-                    PacketSender.SendPlayerCharacters(client);
-                }
-                else
-                {
-                    client?.Logout();
-                }
+            UserActivityHistory.LogActivity(client.User?.Id ?? Guid.Empty, Guid.Empty, client.GetIp(),
+                UserActivityHistory.PeerType.Client,
+                packet.ReturningToCharSelect
+                    ? UserActivityHistory.UserAction.SwitchPlayer
+                    : UserActivityHistory.UserAction.DisconnectLogout, $"{client.Name},{client.Entity?.Name}");
+
+            if (packet.ReturningToCharSelect &&
+                (Options.MaxCharacters > 1 || !Options.Instance.PlayerOpts.SkipCharacterSelect))
+            {
+                client.Entity?.TryLogout(false, true);
+                client.Entity = null;
+                PacketSender.SendPlayerCharacters(client);
+            }
+            else
+            {
+                client.Logout();
             }
         }
 
@@ -670,9 +680,9 @@ namespace Intersect.Server.Networking
             //check if player is stunned or snared, if so don't let them move.
             foreach (var status in player.CachedStatuses)
             {
-                if (status.Type == StatusTypes.Stun ||
-                    status.Type == StatusTypes.Snare ||
-                    status.Type == StatusTypes.Sleep)
+                if (status.Type == SpellEffect.Stun ||
+                    status.Type == SpellEffect.Snare ||
+                    status.Type == SpellEffect.Sleep)
                 {
                     return;
                 }
@@ -690,8 +700,10 @@ namespace Intersect.Server.Networking
             if (player.ClientMoveTimer <= clientTime &&
                 (Options.Instance.PlayerOpts.AllowCombatMovement || player.ClientAttackTimer <= clientTime))
             {
-                var canMove = player.CanMove(packet.Dir);
-                if ((canMove == -1 || canMove == -4) && client.Entity.MoveRoute == null)
+                if (
+                    (player.CanMoveInDirection(packet.Dir, out var blockerType, out _) || blockerType == MovementBlockerType.Slide)
+                    && client.Entity.MoveRoute == default
+                )
                 {
                     player.Move(packet.Dir, player, false);
                     var utcDeltaMs = (Timing.Global.TicksUtc - packet.UTC) / TimeSpan.TicksPerMillisecond;
@@ -826,7 +838,7 @@ namespace Intersect.Server.Networking
                     Strings.Chat.local.ToString(player.Name, msg), ChatMessageType.Local, player.MapId, player.MapInstanceId, chatColor,
                     player.Name
                 );
-                PacketSender.SendChatBubble(player.Id, player.MapInstanceId, (int) EntityTypes.GlobalEntity, msg, player.MapId);
+                PacketSender.SendChatBubble(player.Id, player.MapInstanceId, (int) EntityType.GlobalEntity, msg, player.MapId);
                 ChatHistory.LogMessage(player, msg.Trim(), ChatMessageType.Local, Guid.Empty);
             }
             else if (cmd == Strings.Chat.allcmd || cmd == Strings.Chat.globalcmd)
@@ -995,6 +1007,13 @@ namespace Intersect.Server.Networking
                     PacketSender.SendChatMsg(player, Strings.Player.offline, ChatMessageType.PM, CustomColors.Alerts.Error);
                 }
             }
+            else if (cmd == "/deletemap")
+            {
+                Instance.HandlePacket(
+                    client,
+                    new MapListUpdatePacket(MapListUpdate.Delete, 1, client.Entity.MapId, 0, Guid.Empty, string.Empty)
+                );
+            }
             else
             {
                 //Search for command activated events and run them
@@ -1030,14 +1049,14 @@ namespace Intersect.Server.Networking
             var statuses = client.Entity.Statuses.Values.ToArray();
             foreach (var status in statuses)
             {
-                if (status.Type == StatusTypes.Stun)
+                if (status.Type == SpellEffect.Stun)
                 {
                     PacketSender.SendChatMsg(player, Strings.Combat.stunblocking, ChatMessageType.Combat);
 
                     return;
                 }
 
-                if (status.Type == StatusTypes.Sleep)
+                if (status.Type == SpellEffect.Sleep)
                 {
                     PacketSender.SendChatMsg(player, Strings.Combat.sleepblocking, ChatMessageType.Combat);
 
@@ -1079,7 +1098,7 @@ namespace Intersect.Server.Networking
                 return;
             }
 
-            if (player.AttackTimer > Timing.Global.Milliseconds)
+            if (player.IsAttacking)
             {
                 return;
             }
@@ -1100,7 +1119,7 @@ namespace Intersect.Server.Networking
             //check if player is blinded or stunned or in stealth mode
             foreach (var status in player.CachedStatuses)
             {
-                if (status.Type == StatusTypes.Stun)
+                if (status.Type == SpellEffect.Stun)
                 {
                     if (Options.Combat.EnableCombatChatMessages)
                     {
@@ -1110,7 +1129,7 @@ namespace Intersect.Server.Networking
                     return;
                 }
 
-                if (status.Type == StatusTypes.Sleep)
+                if (status.Type == SpellEffect.Sleep)
                 {
                     if (Options.Combat.EnableCombatChatMessages)
                     {
@@ -1120,7 +1139,7 @@ namespace Intersect.Server.Networking
                     return;
                 }
 
-                if (status.Type == StatusTypes.Blind)
+                if (status.Type == SpellEffect.Blind)
                 {
                     PacketSender.SendActionMsg(player, Strings.Combat.miss, CustomColors.Combat.Missed);
 
@@ -1128,7 +1147,7 @@ namespace Intersect.Server.Networking
                 }
 
                 //Remove stealth status.
-                if (status.Type == StatusTypes.Stealth)
+                if (status.Type == SpellEffect.Stealth)
                 {
                     status.RemoveStatus();
                 }
@@ -1137,30 +1156,42 @@ namespace Intersect.Server.Networking
             var attackingTile = new TileHelper(player.MapId, player.X, player.Y);
             switch (player.Dir)
             {
-                case 0:
+                case Direction.Up:
                     attackingTile.Translate(0, -1);
-
                     break;
 
-                case 1:
+                case Direction.Down:
                     attackingTile.Translate(0, 1);
-
                     break;
 
-                case 2:
+                case Direction.Left:
                     attackingTile.Translate(-1, 0);
-
                     break;
 
-                case 3:
+                case Direction.Right:
                     attackingTile.Translate(1, 0);
+                    break;
 
+                case Direction.UpLeft:
+                    attackingTile.Translate(-1, -1);
+                    break;
+
+                case Direction.UpRight:
+                    attackingTile.Translate(1, -1);
+                    break;
+
+                case Direction.DownLeft:
+                    attackingTile.Translate(-1, 1);
+                    break;
+
+                case Direction.DownRight:
+                    attackingTile.Translate(1, 1);
                     break;
             }
 
             PacketSender.SendEntityAttack(player, player.CalculateAttackTime());
 
-            player.ClientAttackTimer = clientTime + (long) player.CalculateAttackTime();
+            player.ClientAttackTimer = clientTime + player.CalculateAttackTime();
 
             //Fire projectile instead if weapon has it
 
@@ -1175,7 +1206,7 @@ namespace Intersect.Server.Networking
                 {
                     PacketSender.SendAnimationToProximity(
                         attackAnim.Id, -1, player.Id, attackingTile.GetMapId(), attackingTile.GetX(),
-                        attackingTile.GetY(), (sbyte)player.Dir, player.MapInstanceId
+                        attackingTile.GetY(), player.Dir, player.MapInstanceId
                     );
                 }
 
@@ -1228,11 +1259,9 @@ namespace Intersect.Server.Networking
                     if (MapController.TryGetInstanceFromMap(player.MapId, player.MapInstanceId, out var mapInstance))
                     {
                         mapInstance
-                        .SpawnMapProjectile(
-                            player, projectileBase, null, weaponItem, player.MapId,
-                            (byte)player.X, (byte)player.Y, (byte)player.Z,
-                            (byte)player.Dir, null
-                        );
+                            .SpawnMapProjectile(
+                                player, projectileBase, null, weaponItem, player.MapId,
+                                (byte)player.X, (byte)player.Y, (byte)player.Z, player.Dir, null);
 
                         player.AttackTimer = Timing.Global.Milliseconds +
                                              latencyAdjustmentMs +
@@ -1266,7 +1295,7 @@ namespace Intersect.Server.Networking
                     {
                         PacketSender.SendAnimationToProximity(
                             classBase.AttackAnimationId, -1, player.Id, attackingTile.GetMapId(), attackingTile.GetX(),
-                            attackingTile.GetY(), (sbyte) player.Dir, player.MapInstanceId
+                            attackingTile.GetY(), player.Dir, player.MapInstanceId
                         );
                     }
                 }
@@ -1285,7 +1314,7 @@ namespace Intersect.Server.Networking
                 }
             }
 
-            if (player.AttackTimer > Timing.Global.Milliseconds)
+            if (player.IsAttacking)
             {
                 player.AttackTimer = Timing.Global.Milliseconds + latencyAdjustmentMs + player.CalculateAttackTime();
             }
@@ -1295,12 +1324,8 @@ namespace Intersect.Server.Networking
         public void HandlePacket(Client client, DirectionPacket packet)
         {
             var player = client?.Entity;
-            if (player == null)
-            {
-                return;
-            }
 
-            player.ChangeDir(packet.Direction);
+            player?.ChangeDir(packet.Direction);
         }
 
         //EnterGamePacket
@@ -1335,7 +1360,7 @@ namespace Intersect.Server.Networking
         //EventInputVariablePacket
         public void HandlePacket(Client client, EventInputVariablePacket packet)
         {
-            ((Player) client.Entity).RespondToEventInput(
+            client.Entity.RespondToEventInput(
                 packet.EventId, packet.Value, packet.StringValue, packet.Canceled
             );
         }
@@ -1411,7 +1436,7 @@ namespace Intersect.Server.Networking
                         }
                     }
 
-                    PacketSender.SendServerConfig(client);
+                    // PacketSender.SendServerConfig(client); // TODO: We already send this when the client is initialized, why do we send it again here?
 
                     //Check that server is in admin only mode
                     if (Options.AdminOnly)
@@ -1424,16 +1449,9 @@ namespace Intersect.Server.Networking
                         }
                     }
 
-                    //Character selection if more than one.
-                    if (Options.MaxCharacters > 1)
-                    {
-                        PacketSender.SendPlayerCharacters(client);
-                    }
-                    else
-                    {
-                        PacketSender.SendGameObjects(client, GameObjectType.Class);
-                        PacketSender.SendCreateCharacter(client);
-                    }
+                    //Start the character creation process for the newly created account.
+                    PacketSender.SendGameObjects(client, GameObjectType.Class);
+                    PacketSender.SendCreateCharacter(client);
                 }
             }
         }
@@ -1490,10 +1508,10 @@ namespace Intersect.Server.Networking
 
             client.LoadCharacter(newChar);
 
-            newChar.SetVital(Vitals.Health, classBase.BaseVital[(int) Vitals.Health]);
-            newChar.SetVital(Vitals.Mana, classBase.BaseVital[(int) Vitals.Mana]);
+            newChar.SetVital(Vital.Health, classBase.BaseVital[(int) Vital.Health]);
+            newChar.SetVital(Vital.Mana, classBase.BaseVital[(int) Vital.Mana]);
 
-            for (var i = 0; i < (int) Stats.StatCount; i++)
+            for (var i = 0; i < (int) Stat.StatCount; i++)
             {
                 newChar.Stat[i].BaseStat = 0;
             }
@@ -1866,37 +1884,42 @@ namespace Intersect.Server.Networking
                 return;
             }
 
-            if (packet.CraftId == default)
+            lock(player.EntityLock)
             {
-                player.CraftingState = default;
-            }
+                //if player hit stop button in crafting window
+                if (packet.CraftId == default)
+                {
+                    player.CraftingState = default;
+                    return;
+                }
 
-            if (!CraftBase.TryGet(packet.CraftId, out var craftDescriptor))
-            {
-                Log.Warn($"Player {player.Id} tried to craft {packet.CraftId} which does not exist.");
-                return;
-            }
+                if (!CraftBase.TryGet(packet.CraftId, out var craftDescriptor))
+                {
+                    Log.Warn($"Player {player.Id} tried to craft {packet.CraftId} which does not exist.");
+                    return;
+                }
 
-            if (player.OpenCraftingTableId == default)
-            {
-                Log.Warn($"Player {player.Id} tried to craft {packet.CraftId} without having opened a table yet.");
-                return;
-            }
+                if (player.OpenCraftingTableId == default)
+                {
+                    Log.Warn($"Player {player.Id} tried to craft {packet.CraftId} without having opened a table yet.");
+                    return;
+                }
 
-            if (player.CraftingState != default)
-            {
-                PacketSender.SendChatMsg(player, Strings.Crafting.AlreadyCrafting, ChatMessageType.Crafting, CustomColors.Alerts.Error);
-                return;
-            }
+                if (player.CraftingState != default)
+                {
+                    PacketSender.SendChatMsg(player, Strings.Crafting.AlreadyCrafting, ChatMessageType.Crafting, CustomColors.Alerts.Error);
+                    return;
+                }
 
-            player.CraftingState = new CraftingState
-            {
-                Id = packet.CraftId,
-                CraftCount = packet.Count,
-                RemainingCount = packet.Count,
-                DurationPerCraft = craftDescriptor.Time,
-                NextCraftCompletionTime = Timing.Global.Milliseconds + craftDescriptor.Time
-            };
+                player.CraftingState = new CraftingState
+                {
+                    Id = packet.CraftId,
+                    CraftCount = packet.Count,
+                    RemainingCount = packet.Count,
+                    DurationPerCraft = craftDescriptor.Time,
+                    NextCraftCompletionTime = Timing.Global.Milliseconds + craftDescriptor.Time
+                };
+            }
         }
 
         //CloseBankPacket
@@ -2435,26 +2458,30 @@ namespace Intersect.Server.Networking
         public void HandlePacket(Client client, SelectCharacterPacket packet)
         {
             if (client.User == null)
-                return;
-
-            var character = DbInterface.GetUserCharacter(client.User, packet.CharacterId);
-            if (character != null)
             {
-                client.LoadCharacter(character);
+                return;
+            }
 
-                UserActivityHistory.LogActivity(client.User?.Id ?? Guid.Empty, client?.Entity?.Id ?? Guid.Empty, client?.GetIp(), UserActivityHistory.PeerType.Client, UserActivityHistory.UserAction.SelectPlayer, $"{client?.Name},{client?.Entity?.Name}");
+            var character = DbInterface.GetUserCharacter(client.User, packet.CharacterId, true);
+            if (character == null)
+            {
+                return;
+            }
 
-                try
-                {
-                    client.Entity?.SetOnline();
-                    PacketSender.SendJoinGame(client);
-                }
-                catch (Exception exception)
-                {
-                    Log.Warn(exception);
-                    PacketSender.SendError(client, Strings.Account.loadfail);
-                    client.Logout();
-                }
+            client.LoadCharacter(character);
+
+            UserActivityHistory.LogActivity(client.User?.Id ?? Guid.Empty, client?.Entity?.Id ?? Guid.Empty, client?.GetIp(), UserActivityHistory.PeerType.Client, UserActivityHistory.UserAction.SelectPlayer, $"{client?.Name},{client?.Entity?.Name}");
+
+            try
+            {
+                client.Entity?.SetOnline();
+                PacketSender.SendJoinGame(client);
+            }
+            catch (Exception exception)
+            {
+                Log.Warn(exception);
+                PacketSender.SendError(client, Strings.Account.loadfail);
+                client.Logout();
             }
         }
 
@@ -2611,7 +2638,7 @@ namespace Intersect.Server.Networking
             // Handle our desired action, assuming we're allowed to of course.
             switch (packet.Action)
             {
-                case GuildMemberUpdateActions.Invite:
+                case GuildMemberUpdateAction.Invite:
                     // Are we allowed to invite players?
                     var inviteRankIndex = Options.Instance.Guild.Ranks.Length - 1;
                     var inviteRank = Options.Instance.Guild.Ranks[inviteRankIndex];
@@ -2652,7 +2679,7 @@ namespace Intersect.Server.Networking
                         PacketSender.SendChatMsg(player, Strings.Guilds.InviteNotOnline, ChatMessageType.Guild, CustomColors.Alerts.Error);
                     }
                     break;
-                case GuildMemberUpdateActions.Remove:
+                case GuildMemberUpdateAction.Remove:
                     if (guild.Members.TryGetValue(packet.Id, out member))
                     {
                         if ((!rank.Permissions.Kick && !isOwner) || member.Rank <= player.GuildRank)
@@ -2667,14 +2694,14 @@ namespace Intersect.Server.Networking
                             mem.StartCommonEventsWithTrigger(CommonEventTrigger.GuildMemberKicked, guild.Name, member.Name);
                         }
 
-                        guild.RemoveMember(Player.Find(packet.Id), player, GuildHistory.GuildActivityType.Kicked);
+                        guild.RemoveMember(packet.Id, default, player, GuildHistory.GuildActivityType.Kicked);
                     }
                     else
                     {
                         PacketSender.SendChatMsg(player, Strings.Guilds.NoSuchPlayer, ChatMessageType.Guild, CustomColors.Alerts.Error);
                     }
                     break;
-                case GuildMemberUpdateActions.Promote:
+                case GuildMemberUpdateAction.Promote:
                     if (guild.Members.TryGetValue(packet.Id, out member))
                     {
                         var promotionRankIndex = Math.Max(0, Math.Min(packet.Rank, Options.Instance.Guild.Ranks.Length - 1));
@@ -2700,7 +2727,7 @@ namespace Intersect.Server.Networking
                         PacketSender.SendChatMsg(player, Strings.Guilds.NoSuchPlayer, ChatMessageType.Guild, CustomColors.Alerts.Error);
                     }
                     break;
-                case GuildMemberUpdateActions.Demote:
+                case GuildMemberUpdateAction.Demote:
                     if (guild.Members.TryGetValue(packet.Id, out member))
                     {
                         var demotionRankIndex = Math.Max(0, Math.Min(packet.Rank, Options.Instance.Guild.Ranks.Length - 1));
@@ -2726,7 +2753,7 @@ namespace Intersect.Server.Networking
                         PacketSender.SendChatMsg(player, Strings.Guilds.NoSuchPlayer, ChatMessageType.Guild, CustomColors.Alerts.Error);
                     }
                     break;
-                case GuildMemberUpdateActions.Transfer:
+                case GuildMemberUpdateAction.Transfer:
                     if (guild.Members.TryGetValue(packet.Id, out member))
                     {
                         if (!isOwner)
@@ -2867,7 +2894,7 @@ namespace Intersect.Server.Networking
                 member.StartCommonEventsWithTrigger(CommonEventTrigger.GuildMemberLeft, guild.Name, player.Name);
             }
 
-            guild.RemoveMember(player, null, GuildHistory.GuildActivityType.Left);
+            guild.RemoveMember(player.Id, player, null, GuildHistory.GuildActivityType.Left);
 
             // Send the newly updated player information to their surroundings.
             PacketSender.SendEntityDataToProximity(player);
@@ -2952,7 +2979,7 @@ namespace Intersect.Server.Networking
                 }
             }
 
-            PacketSender.SendServerConfig(client);
+            // PacketSender.SendServerConfig(client); // TODO: We already send this when the client is initialized, why do we send it again here?
 
             //Editor doesn't receive packet before login
             PacketSender.SendJoinGame(client);
@@ -3036,7 +3063,7 @@ namespace Intersect.Server.Networking
 
             foreach (var plyr in players)
             {
-                plyr.Warp(plyr.MapId, (byte) plyr.X, (byte) plyr.Y, (byte) plyr.Dir, false, (byte) plyr.Z, true);
+                plyr.Warp(plyr.MapId, (byte) plyr.X, (byte) plyr.Y, plyr.Dir, false, (byte) plyr.Z, true);
                 PacketSender.SendMap(plyr.Client, packet.MapId);
             }
 
@@ -3254,99 +3281,143 @@ namespace Intersect.Server.Networking
                 return;
             }
 
-            MapListFolder parent = null;
-            var mapId = Guid.Empty;
+            MapListFolder parent = default;
+            MapList currentList;
             switch (packet.UpdateType)
             {
-                case MapListUpdates.MoveItem:
+                case MapListUpdate.MoveItem:
                     MapList.List.HandleMove(packet.TargetType, packet.TargetId, packet.ParentType, packet.ParentId);
                     break;
 
-                case MapListUpdates.AddFolder:
+                case MapListUpdate.AddFolder:
                     if (packet.ParentId == Guid.Empty)
                     {
+                        parent = default;
                         MapList.List.AddFolder(Strings.Mapping.newfolder);
-                    }
-                    else if (packet.ParentType == 0)
-                    {
-                        parent = MapList.List.FindFolder(packet.ParentId);
-                        if (parent == null)
-                        {
-                            MapList.List.AddFolder(Strings.Mapping.newfolder);
-                        }
-                        else
-                        {
-                            parent.Children.AddFolder(Strings.Mapping.newfolder);
-                        }
-                    }
-                    else if (packet.ParentType == 1)
-                    {
-                        mapId = packet.ParentId;
-                        parent = MapList.List.FindMapParent(mapId, null);
-                        if (parent == null)
-                        {
-                            MapList.List.AddFolder(Strings.Mapping.newfolder);
-                        }
-                        else
-                        {
-                            parent.Children.AddFolder(Strings.Mapping.newfolder);
-                        }
+                        break;
                     }
 
+                    switch (packet.ParentType)
+                    {
+                        case 0:
+                            parent = MapList.List.FindFolder(packet.ParentId);
+                            break;
+                        case 1:
+                            parent = MapList.List.FindMapParent(packet.ParentId, null);
+                            break;
+                    }
+
+                    currentList = parent?.Children ?? MapList.List;
+                    currentList.AddFolder(Strings.Mapping.newfolder);
                     break;
 
-                case MapListUpdates.Rename:
+                case MapListUpdate.Rename:
                     if (packet.TargetType == 0)
                     {
                         parent = MapList.List.FindFolder(packet.TargetId);
-                        parent.Name = packet.Name;
-                        PacketSender.SendMapListToAll();
-                    }
-                    else if (packet.TargetType == 1)
-                    {
-                        var mapListMap = MapList.List.FindMap(packet.TargetId);
-                        mapListMap.Name = packet.Name;
-                        MapController.Get(packet.TargetId).Name = packet.Name;
-                        DbInterface.SaveGameObject(MapController.Get(packet.TargetId));
-                        PacketSender.SendMapListToAll();
-                    }
-
-                    break;
-
-                case MapListUpdates.Delete:
-                    if (packet.TargetType == 0)
-                    {
-                        MapList.List.DeleteFolder(packet.TargetId);
-                        PacketSender.SendMapListToAll();
-                    }
-                    else if (packet.TargetType == 1)
-                    {
-                        if (MapController.Lookup.Count == 1)
+                        if (parent == default)
                         {
-                            PacketSender.SendError(client, Strings.Mapping.lastmaperror, Strings.Mapping.lastmap);
-
+                            Log.Warn($"Tried to rename {nameof(MapListFolder)} {packet.TargetId} but it was not found.");
                             return;
                         }
 
-                        lock (ServerContext.Instance.LogicService.LogicLock)
+                        parent.Name = packet.Name;
+                        break;
+                    }
+
+                    if (packet.TargetType == 1)
+                    {
+                        var mapListMap = MapList.List.FindMap(packet.TargetId);
+                        if (mapListMap == default)
                         {
-                            ServerContext.Instance.LogicService.LogicPool.WaitForIdle();
-                            mapId = packet.TargetId;
-                            var players = MapController.Get(mapId).GetPlayersOnAllInstances();
-                            MapList.List.DeleteMap(mapId);
-                            DbInterface.DeleteGameObject(MapController.Get(mapId));
-                            DbInterface.GenerateMapGrids();
-                            PacketSender.SendMapListToAll();
-                            foreach (var plyr in players)
-                            {
-                                plyr.WarpToSpawn();
-                            }
+                            Log.Warn($"Tried to rename {nameof(MapListMap)} {packet.TargetId} but it was not found in the map list.");
+                            return;
                         }
 
-                        PacketSender.SendMapToEditors(mapId);
+                        if (!MapController.TryGet(packet.TargetId, out var mapToRename))
+                        {
+                            Log.Warn($"Tried to rename {nameof(MapListMap)} {packet.TargetId} but the map itself could not be found.");
+                            return;
+                        }
+
+                        mapListMap.Name = packet.Name;
+                        mapToRename.Name = packet.Name;
+                        DbInterface.SaveGameObject(mapToRename);
                     }
 
                     break;
+
+                case MapListUpdate.Delete:
+                    if (packet.TargetType == 0)
+                    {
+                        MapList.List.DeleteFolder(packet.TargetId);
+                        break;
+                    }
+
+                    if (packet.TargetType == 1)
+                    {
+                        if (MapController.Lookup == default)
+                        {
+                            Log.Warn($"Tried to delete {nameof(MapListMap)} {packet.TargetId} but the {nameof(MapController)}.{nameof(MapController.Lookup)} was null?");
+                            return;
+                        }
+
+                        if (MapController.Lookup.Count < 2)
+                        {
+                            PacketSender.SendError(client, Strings.Mapping.lastmaperror, Strings.Mapping.lastmap);
+                            return;
+                        }
+
+                        var logicService = ServerContext.Instance?.LogicService;
+                        var logicLock = logicService?.LogicLock;
+                        if (logicLock == default)
+                        {
+                            Log.Error($"{nameof(ServerContext)}.{nameof(ServerContext.Instance)}.{nameof(ServerContext.LogicService)}.{nameof(LogicService.LogicLock)} was unexpectedly null when try to delete {nameof(MapListMap)} {packet.TargetId}.");
+                            return;
+                        }
+
+                        var logicPool = logicService.LogicPool;
+                        if (logicPool == default)
+                        {
+                            Log.Error($"{nameof(ServerContext)}.{nameof(ServerContext.Instance)}.{nameof(ServerContext.LogicService)}.{nameof(LogicService.LogicPool)} was unexpectedly null when try to delete {nameof(MapListMap)} {packet.TargetId}.");
+                            return;
+                        }
+
+                        if (!MapController.TryGet(packet.TargetId, out var mapToDelete))
+                        {
+                            Log.Warn($"Tried to delete {nameof(MapListMap)} {packet.TargetId} but the map itself could not be found.");
+                            return;
+                        }
+
+                        if (!(mapToDelete is MapController mapController))
+                        {
+                            Log.Warn($"Tried to delete {nameof(MapListMap)} {packet.TargetId} but {nameof(MapController)}.{nameof(MapController.TryGet)} returned something other than a {nameof(MapController)}.");
+                            return;
+                        }
+
+                        lock (logicLock)
+                        {
+                            logicPool.WaitForIdle();
+
+                            // Warp players off the map being deleted
+                            var players = mapController.GetPlayersOnAllInstances();
+                            foreach (var player in players)
+                            {
+                                player.WarpToSpawn();
+                            }
+
+                            MapList.List.DeleteMap(mapController.Id);
+                            DbInterface.DeleteGameObject(mapController);
+                            DbInterface.GenerateMapGrids();
+                        }
+
+                        PacketSender.SendMapToEditors(mapController.Id);
+                    }
+
+                    break;
+
+                default:
+                    throw new IndexOutOfRangeException($"{nameof(packet.UpdateType)} was not a valid value or has not been implemented: {packet.UpdateType}");
             }
 
             DbInterface.SaveMapList();
@@ -3383,26 +3454,25 @@ namespace Intersect.Server.Networking
                             //Up
                             if (gridY - 1 >= 0 && grid.MyGrid[gridX, gridY - 1] != Guid.Empty)
                             {
-                                MapController.Get(grid.MyGrid[gridX, gridY - 1])?.ClearConnections((int) Directions.Down);
+                                MapController.Get(grid.MyGrid[gridX, gridY - 1])?.ClearConnections(Direction.Down);
                             }
 
                             //Down
                             if (gridY + 1 < grid.Height && grid.MyGrid[gridX, gridY + 1] != Guid.Empty)
                             {
-                                MapController.Get(grid.MyGrid[gridX, gridY + 1])?.ClearConnections((int) Directions.Up);
+                                MapController.Get(grid.MyGrid[gridX, gridY + 1])?.ClearConnections(Direction.Up);
                             }
 
                             //Left
                             if (gridX - 1 >= 0 && grid.MyGrid[gridX - 1, gridY] != Guid.Empty)
                             {
-                                MapController.Get(grid.MyGrid[gridX - 1, gridY])
-                                    ?.ClearConnections((int) Directions.Right);
+                                MapController.Get(grid.MyGrid[gridX - 1, gridY])?.ClearConnections(Direction.Right);
                             }
 
                             //Right
                             if (gridX + 1 < grid.Width && grid.MyGrid[gridX + 1, gridY] != Guid.Empty)
                             {
-                                MapController.Get(grid.MyGrid[gridX + 1, gridY]).ClearConnections((int) Directions.Left);
+                                MapController.Get(grid.MyGrid[gridX + 1, gridY])?.ClearConnections(Direction.Left);
                             }
 
                             DbInterface.GenerateMapGrids();

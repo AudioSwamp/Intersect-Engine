@@ -10,10 +10,8 @@ using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
-
     public partial class ServerVariableBase : DatabaseObject<ServerVariableBase>, IFolderable
     {
-
         [JsonConstructor]
         public ServerVariableBase(Guid id) : base(id)
         {
@@ -30,7 +28,7 @@ namespace Intersect.GameObjects
         public string TextId { get; set; }
 
         // TODO(0.8): Rename this to DataType
-        public VariableDataTypes Type { get; set; } = VariableDataTypes.Boolean;
+        public VariableDataType Type { get; set; } = VariableDataType.Boolean;
 
         [NotMapped]
         [JsonIgnore]
@@ -38,7 +36,11 @@ namespace Intersect.GameObjects
 
         [NotMapped]
         [JsonProperty("Value")]
-        public dynamic ValueData { get => Value.Value; set => Value.Value = value; }
+        public dynamic ValueData
+        {
+            get => Value.Value;
+            set => Value.Value = value;
+        }
 
         [Column(nameof(Value))]
         [JsonIgnore]
@@ -62,7 +64,7 @@ namespace Intersect.GameObjects
         /// </summary>
         /// <param name="dataType">The data type to retrieve names of.</param>
         /// <returns>Returns an array of names.</returns>
-        public static string[] GetNamesByType(VariableDataTypes dataType) =>
+        public static string[] GetNamesByType(VariableDataType dataType) =>
             Lookup
                 .Where(pair => pair.Value is ServerVariableBase descriptor && descriptor.Type == dataType)
                 .OrderBy(pair => pair.Value.TimeCreated)
@@ -75,7 +77,7 @@ namespace Intersect.GameObjects
         /// <param name="id">The Id to look up.</param>
         /// <param name="dataType">The data type to search up.</param>
         /// <returns>Returns the list Index of the provided Id.</returns>
-        public static int ListIndex(Guid id, VariableDataTypes dataType) =>
+        public static int ListIndex(Guid id, VariableDataType dataType) =>
             Lookup
                 .Where(pair => pair.Value is ServerVariableBase descriptor && descriptor.Type == dataType)
                 .OrderBy(pair => pair.Value.TimeCreated)
@@ -88,7 +90,7 @@ namespace Intersect.GameObjects
         /// <param name="listIndex">The list index to retrieve.</param>
         /// <param name="dataType">The data type to search up.</param>
         /// <returns>Returns the Id of the provided index.</returns>
-        public static Guid IdFromList(int listIndex, VariableDataTypes dataType)
+        public static Guid IdFromList(int listIndex, VariableDataType dataType)
         {
             if (listIndex < 0 || listIndex > GetNamesByType(dataType).Length)
             {
@@ -99,7 +101,8 @@ namespace Intersect.GameObjects
                 .Where(pair => pair.Value is ServerVariableBase descriptor && descriptor.Type == dataType)
                 .OrderBy(pair => pair.Value.TimeCreated)
                 .Skip(listIndex)
-                .First().Value.Id;
+                .First()
+                .Value.Id;
         }
     }
 }

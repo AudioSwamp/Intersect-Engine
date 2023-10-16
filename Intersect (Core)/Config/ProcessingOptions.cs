@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Intersect.Config
 {
@@ -51,6 +47,7 @@ namespace Intersect.Config
         /// Minimum number of threads that will be used for database interactions like player or variable saving
         /// </summary>
         public int MinDatabaseThreads { get; set; } = 2;
+
         /// <summary>
         /// Maximum number of threads that will be used for database interactions like player or variable saving
         /// </summary>
@@ -70,14 +67,17 @@ namespace Intersect.Config
         /// Minimum number of worker threads that will be used in the system managed threadpool (-1 for default)
         /// </summary>
         public int MinSystemThreadpoolWorkerThreads { get; set; } = -1;
+
         /// <summary>
         /// Maximum number of worker threads that will be used in the system managed threadpool (-1 for default)
         /// </summary>
         public int MaxSystemThreadpoolWorkerThreads { get; set; } = -1;
+
         /// <summary>
         /// Minimum number of worker threads that will be used for io the system managed threadpool (-1 for default)
         /// </summary>
         public int MinSystemThreadpoolIOThreads { get; set; } = -1;
+
         /// <summary>
         /// Maximum number of worker threads that will be used for io the system managed threadpool (-1 for default)
         /// </summary>
@@ -102,6 +102,11 @@ namespace Intersect.Config
         /// How often should the server try to execute autorun common events for a player? This can get expensive if you have a lot of autorun common events with lots of complex conditions.
         /// </summary>
         public int CommonEventAutorunStartInterval { get; set; } = 500;
+
+        /// <summary>
+        /// How often should the server check for stale cooldowns on players to remove them from their respective collections.
+        /// </summary>
+        public int StaleCooldownRemovalTimer { get; set; } = 60000;
 
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)
@@ -169,6 +174,11 @@ namespace Intersect.Config
             if (PlayerSaveInterval < 20000)
             {
                 throw new InvalidOperationException("Player save interval is too low and would cause performance issues, consider raising.");
+            }
+
+            if (StaleCooldownRemovalTimer < 100) 
+            {
+                throw new InvalidOperationException("StaleCooldownRemovalTimer is too low, value should be at least 100ms to avoid running this check every server tick.");
             }
         }
     }

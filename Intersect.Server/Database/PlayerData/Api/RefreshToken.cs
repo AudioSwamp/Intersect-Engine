@@ -1,14 +1,8 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Intersect.Logging;
-
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 using Newtonsoft.Json;
@@ -19,10 +13,10 @@ namespace Intersect.Server.Database.PlayerData.Api
     public partial class RefreshToken
     {
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         [Column(Order = 0)]
         [Key]
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         [Required, ForeignKey(nameof(User))]
         public Guid UserId { get; set; }
@@ -43,6 +37,7 @@ namespace Intersect.Server.Database.PlayerData.Api
         public Guid TicketId { get; set; }
 
         [Required]
+        [ProtectedPersonalData]
         public string Ticket { get; set; }
 
         // To help avoid concurrency exceptions
@@ -86,7 +81,6 @@ namespace Intersect.Server.Database.PlayerData.Api
                     }
 
                     _ = context.RefreshTokens.Add(token);
-                    context.DetachExcept(token);
                     context.ChangeTracker.DetectChanges();
 
                     if (tokensToRemove.Count > 0)
@@ -112,11 +106,9 @@ namespace Intersect.Server.Database.PlayerData.Api
         {
             try
             {
-                using (var context = DbInterface.CreatePlayerContext())
-                {
-                    refreshToken = context?.RefreshTokens?.Find(id);
-                    return refreshToken != default;
-                }
+                using var context = DbInterface.CreatePlayerContext();
+                refreshToken = context?.RefreshTokens?.Where(token => token.Id == id).Include(token => token.User).FirstOrDefault();
+                return refreshToken != default;
             }
             catch (Exception ex)
             {
@@ -281,6 +273,24 @@ namespace Intersect.Server.Database.PlayerData.Api
             return FindOneForUser(user.Id);
         }
 
+        public static bool HasTokens(Guid userId)
+        {
+            try
+            {
+                using (var context = DbInterface.CreatePlayerContext())
+                {
+                    return context.RefreshTokens.Any(queryToken => queryToken.UserId == userId);
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception);
+                throw;
+            }
+        }
+
+        public static bool HasTokens(User user) => HasTokens(user.Id);
+
         public static bool Remove(Guid id) => TryFind(id, out var token) && Remove(token);
 
         public static bool Remove(RefreshToken token) => RemoveAll(new []{ token });
@@ -303,7 +313,6 @@ namespace Intersect.Server.Database.PlayerData.Api
                 using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
                     context.RefreshTokens.RemoveRange(unblockedTokens);
-                    context.DetachExcept(unblockedTokens);
                     _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 }
 
@@ -321,6 +330,24 @@ namespace Intersect.Server.Database.PlayerData.Api
             }
         }
 
+        public static async Task<bool> RemoveForUserAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            using (var context = DbInterface.CreatePlayerContext(readOnly: false))
+            {
+                try
+                {
+                    context.RefreshTokens.RemoveRange(context.RefreshTokens.Where(token => token.UserId == userId));
+                    _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    return true;
+                }
+                catch (DbUpdateConcurrencyException concurrencyException)
+                {
+                    concurrencyException.LogError();
+                    return false;
+                }
+            }
+        }
+
         public static async Task<int> RemoveExpiredAsync(int pruneCount, CancellationToken cancellationToken = default)
         {
             using (var context = DbInterface.CreatePlayerContext(readOnly: false))
@@ -331,7 +358,6 @@ namespace Intersect.Server.Database.PlayerData.Api
                     var tokensToRemove = context.RefreshTokens.Where(queryToken => queryToken.Expires < DateTime.UtcNow).Take(pruneCount).ToArray();
                     var unblockedTokens = tokensToRemove.Where(token => _pendingChanges.TryAdd(token.Id, EntityState.Deleted)).ToArray();
                     context.RefreshTokens.RemoveRange(unblockedTokens);
-                    context.DetachExcept(unblockedTokens);
                     _ = await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                     foreach (var token in unblockedTokens)
                     {

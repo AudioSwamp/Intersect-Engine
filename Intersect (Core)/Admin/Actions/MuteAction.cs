@@ -1,4 +1,3 @@
-﻿using Intersect.Enums;
 using MessagePack;
 
 namespace Intersect.Admin.Actions
@@ -21,7 +20,7 @@ namespace Intersect.Admin.Actions
         }
 
         [Key(1)]
-        public override AdminActions Action { get; } = AdminActions.Mute;
+        public override Enums.AdminAction Action { get; } = Enums.AdminAction.Mute;
 
         [Key(2)]
         public string Name { get; set; }
@@ -34,7 +33,5 @@ namespace Intersect.Admin.Actions
 
         [Key(5)]
         public bool BanIp { get; set; }
-
     }
-
 }

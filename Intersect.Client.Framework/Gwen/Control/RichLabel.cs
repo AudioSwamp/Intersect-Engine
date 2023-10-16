@@ -26,13 +26,15 @@ namespace Intersect.Client.Framework.Gwen.Control
 
         private bool mNeedsRebuild;
 
+        public List<Label> FormattedLabels { get; set; } = new List<Label>();
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="RichLabel" /> class.
         /// </summary>
         /// <param name="parent">Parent control.</param>
         public RichLabel(Base parent, string name = "") : base(parent, name)
         {
-            mNewline = new string[] {Environment.NewLine, "\n"};
+            mNewline = new string[] { Environment.NewLine, "\n" };
             mTextBlocks = new List<TextBlock>();
         }
 
@@ -41,27 +43,28 @@ namespace Intersect.Client.Framework.Gwen.Control
         /// </summary>
         public void AddLineBreak()
         {
-            var block = new TextBlock {Type = BlockType.NewLine};
+            var block = new TextBlock { Type = BlockType.NewLine };
             mTextBlocks.Add(block);
         }
 
         /// <inheritdoc />
-        public override void LoadJson(JToken obj)
+        public override void LoadJson(JToken obj, bool isRoot = default)
         {
             base.LoadJson(obj);
 
             if (obj["Font"] != null && obj["Font"].Type != JTokenType.Null)
             {
-                var fontArr = ((string) obj["Font"]).Split(',');
-                mFontInfo = (string) obj["Font"];
+                var fontArr = ((string)obj["Font"]).Split(',');
+                mFontInfo = (string)obj["Font"];
                 mFont = GameContentManager.Current.GetFont(fontArr[0], int.Parse(fontArr[1]));
             }
         }
 
+        /// <param name="isRoot"></param>
         /// <inheritdoc />
-        public override JObject GetJson()
+        public override JObject GetJson(bool isRoot = default)
         {
-            var obj = base.GetJson();
+            var obj = base.GetJson(isRoot);
             obj.Add("Font", mFontInfo);
 
             return base.FixJson(obj);
@@ -244,6 +247,8 @@ namespace Intersect.Client.Framework.Gwen.Control
             label.AddAlignment(block.Alignment);
             label.ProcessAlignments();
 
+            FormattedLabels.Add(label);
+
             //lineheight = (lineheight + pLabel.Height()) / 2;
 
             x += label.Width;
@@ -269,6 +274,7 @@ namespace Intersect.Client.Framework.Gwen.Control
         protected void Rebuild()
         {
             DeleteAllChildren();
+            FormattedLabels.Clear();
 
             var x = 0;
             var y = 0;

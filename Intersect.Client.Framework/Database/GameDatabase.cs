@@ -1,4 +1,5 @@
 using System;
+using Intersect.Enums;
 
 namespace Intersect.Client.Framework.Database
 {
@@ -10,6 +11,8 @@ namespace Intersect.Client.Framework.Database
         public bool FullScreen { get; set; }
 
         public bool HideOthersOnWindowOpen { get; set; }
+
+        public bool AutoToggleChatLog { get; set; }
 
         public bool TargetAccountDirection { get; set; }
 
@@ -29,15 +32,27 @@ namespace Intersect.Client.Framework.Database
 
         public bool FriendOverheadInfo { get; set; }
 
+        public bool FriendOverheadHpBar { get; set; }
+
         public bool GuildMemberOverheadInfo { get; set; }
+
+        public bool GuildMemberOverheadHpBar { get; set; }
 
         public bool MyOverheadInfo { get; set; }
 
+        public bool MyOverheadHpBar { get; set; }
+
         public bool NpcOverheadInfo { get; set; }
+
+        public bool NpcOverheadHpBar { get; set; }
 
         public bool PartyMemberOverheadInfo { get; set; }
 
+        public bool PartyMemberOverheadHpBar { get; set; }
+
         public bool PlayerOverheadInfo { get; set; }
+
+        public bool PlayerOverheadHpBar { get; set; }
 
         public bool ShowExperienceAsPercentage { get; set; }
 
@@ -45,12 +60,18 @@ namespace Intersect.Client.Framework.Database
 
         public bool ShowManaAsPercentage { get; set; }
 
+        public TypewriterBehavior TypewriterBehavior { get; set; }
+
+        public float UIScale { get; set; } = 1.0f;
+
+        public float WorldZoom { get; set; } = 1.0f;
+
         public abstract void DeletePreference(string key);
 
         public abstract bool HasPreference(string key);
 
         //Saving password, other stuff we don't want in the games directory
-        public abstract void SavePreference(string key, object value);
+        public abstract void SavePreference<TValue>(string key, TValue value);
 
         public abstract string LoadPreference(string key);
 
@@ -62,7 +83,21 @@ namespace Intersect.Client.Framework.Database
                 return defaultValue;
             }
 
-            return (T) Convert.ChangeType(value, typeof(T));
+            var type = typeof(T);
+            if (type.IsEnum)
+            {
+                try
+                {
+                    var enumValue = Enum.Parse(type, value);
+                    return (T)enumValue;
+                }
+                catch
+                {
+                    return defaultValue;
+                }
+            }
+
+            return (T)Convert.ChangeType(value, typeof(T));
         }
 
         /// <summary>
@@ -70,25 +105,35 @@ namespace Intersect.Client.Framework.Database
         /// </summary>
         public virtual void LoadPreferences()
         {
-            MusicVolume = LoadPreference(nameof(MusicVolume), 25);
-            SoundVolume = LoadPreference(nameof(SoundVolume), 25);
+            MusicVolume = LoadPreference(nameof(MusicVolume), 10);
+            SoundVolume = LoadPreference(nameof(SoundVolume), 15);
             TargetResolution = LoadPreference(nameof(TargetResolution), 0);
             TargetFps = LoadPreference(nameof(TargetFps), 0);
             FullScreen = LoadPreference(nameof(FullScreen), false);
             EnableLighting = LoadPreference(nameof(EnableLighting), true);
             HideOthersOnWindowOpen = LoadPreference(nameof(HideOthersOnWindowOpen), true);
+            AutoToggleChatLog = LoadPreference(nameof(AutoToggleChatLog), false);
             TargetAccountDirection = LoadPreference(nameof(TargetAccountDirection), false);
             StickyTarget = LoadPreference(nameof(StickyTarget), false);
             AutoTurnToTarget = LoadPreference(nameof(AutoTurnToTarget), false);
             FriendOverheadInfo = LoadPreference(nameof(FriendOverheadInfo), true);
+            FriendOverheadHpBar = LoadPreference(nameof(FriendOverheadHpBar), false);
             GuildMemberOverheadInfo = LoadPreference(nameof(GuildMemberOverheadInfo), true);
+            GuildMemberOverheadHpBar = LoadPreference(nameof(GuildMemberOverheadHpBar), false);
             MyOverheadInfo = LoadPreference(nameof(MyOverheadInfo), true);
+            MyOverheadHpBar = LoadPreference(nameof(MyOverheadHpBar), false);
             NpcOverheadInfo = LoadPreference(nameof(NpcOverheadInfo), true);
+            NpcOverheadHpBar = LoadPreference(nameof(NpcOverheadHpBar), false);
             PartyMemberOverheadInfo = LoadPreference(nameof(PartyMemberOverheadInfo), true);
+            PartyMemberOverheadHpBar = LoadPreference(nameof(PartyMemberOverheadHpBar), false);
             PlayerOverheadInfo = LoadPreference(nameof(PlayerOverheadInfo), true);
+            PlayerOverheadHpBar = LoadPreference(nameof(PlayerOverheadHpBar), false);
             ShowExperienceAsPercentage = LoadPreference(nameof(ShowExperienceAsPercentage), true);
             ShowHealthAsPercentage = LoadPreference(nameof(ShowHealthAsPercentage), false);
             ShowManaAsPercentage = LoadPreference(nameof(ShowManaAsPercentage), false);
+            TypewriterBehavior = LoadPreference(nameof(TypewriterBehavior), TypewriterBehavior.Word);
+            UIScale = LoadPreference(nameof(UIScale), 1.0f);
+            WorldZoom = LoadPreference(nameof(WorldZoom), 1.0f);
         }
 
         /// <summary>
@@ -103,18 +148,28 @@ namespace Intersect.Client.Framework.Database
             SavePreference(nameof(FullScreen), FullScreen);
             SavePreference(nameof(EnableLighting), EnableLighting);
             SavePreference(nameof(HideOthersOnWindowOpen), HideOthersOnWindowOpen);
+            SavePreference(nameof(AutoToggleChatLog), AutoToggleChatLog);
             SavePreference(nameof(TargetAccountDirection), TargetAccountDirection);
             SavePreference(nameof(StickyTarget), StickyTarget);
             SavePreference(nameof(AutoTurnToTarget), AutoTurnToTarget);
             SavePreference(nameof(FriendOverheadInfo), FriendOverheadInfo);
+            SavePreference(nameof(FriendOverheadHpBar), FriendOverheadHpBar);
             SavePreference(nameof(GuildMemberOverheadInfo), GuildMemberOverheadInfo);
+            SavePreference(nameof(GuildMemberOverheadHpBar), GuildMemberOverheadHpBar);
             SavePreference(nameof(MyOverheadInfo), MyOverheadInfo);
+            SavePreference(nameof(MyOverheadHpBar), MyOverheadHpBar);
             SavePreference(nameof(NpcOverheadInfo), NpcOverheadInfo);
+            SavePreference(nameof(NpcOverheadHpBar), NpcOverheadHpBar);
             SavePreference(nameof(PartyMemberOverheadInfo), PartyMemberOverheadInfo);
+            SavePreference(nameof(PartyMemberOverheadHpBar), PartyMemberOverheadHpBar);
             SavePreference(nameof(PlayerOverheadInfo), PlayerOverheadInfo);
+            SavePreference(nameof(PlayerOverheadHpBar), PlayerOverheadHpBar);
             SavePreference(nameof(ShowExperienceAsPercentage), ShowExperienceAsPercentage);
             SavePreference(nameof(ShowHealthAsPercentage), ShowHealthAsPercentage);
             SavePreference(nameof(ShowManaAsPercentage), ShowManaAsPercentage);
+            SavePreference(nameof(TypewriterBehavior), TypewriterBehavior);
+            SavePreference(nameof(UIScale), UIScale);
+            SavePreference(nameof(WorldZoom), WorldZoom);
         }
 
         public abstract bool LoadConfig();

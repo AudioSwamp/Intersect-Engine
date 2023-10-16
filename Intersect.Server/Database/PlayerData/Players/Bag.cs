@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using Intersect.GameObjects;
 using Intersect.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -26,14 +22,14 @@ namespace Intersect.Server.Database.PlayerData.Players
         {
             SlotCount = slots;
             ValidateSlots();
-            Save();
+            Save(create: true);
         }
 
         [JsonIgnore, NotMapped]
         public bool IsEmpty => Slots?.All(slot => slot?.ItemId == default || ItemBase.Get(slot.ItemId) == default) ?? true;
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; private set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public Guid Id { get; private set; } = Guid.NewGuid();
 
         public int SlotCount { get; private set; }
 
@@ -120,13 +116,20 @@ namespace Intersect.Server.Database.PlayerData.Players
             }
         }
 
-        public void Save ()
+        public void Save (bool create = false)
         {
             try
             {
                 using (var context = DbInterface.CreatePlayerContext(readOnly: false))
                 {
-                    context.Bags.Update(this);
+                    if (create)
+                    {
+                        context.Bags.Add(this);
+                    }
+                    else
+                    {
+                        context.Bags.Update(this);
+                    }
                     context.ChangeTracker.DetectChanges();
                     context.SaveChanges();
                 }

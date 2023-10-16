@@ -67,8 +67,18 @@
         OpenAdminPanel,
 
         ToggleGui,
-        
+
         TurnAround,
+
+        ToggleZoomIn,
+
+        HoldToZoomIn,
+
+        ToggleZoomOut,
+
+        HoldToZoomOut,
+
+        ToggleFullscreen,
 
     }
 

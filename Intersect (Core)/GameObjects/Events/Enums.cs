@@ -1,9 +1,7 @@
-﻿namespace Intersect.GameObjects.Events
+namespace Intersect.GameObjects.Events
 {
-
     public enum MoveRouteEnum
     {
-
         MoveUp = 1,
 
         MoveDown,
@@ -94,12 +92,18 @@
 
         SetAnimation,
 
+        MoveUpLeft,
+
+        MoveUpRight,
+
+        MoveDownRight,
+
+        MoveDownLeft,
     }
 
     //ONLY ADD TO THE END OF THIS LIST ELSE FACE THE WRATH OF JC!!!!!
     public enum EventCommandType
     {
-
         Null = 0,
 
         //Dialog
@@ -225,10 +229,10 @@
         DisbandGuild,
         OpenGuildBank,
         SetGuildBankSlots,
+
         //End Guilds
 
         //Reset Stats
         ResetStatPointAllocations,
     }
-
 }

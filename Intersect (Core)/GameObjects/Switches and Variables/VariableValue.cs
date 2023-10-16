@@ -9,16 +9,18 @@ using Newtonsoft.Json.Linq;
 
 namespace Intersect.GameObjects.Switches_and_Variables
 {
-
     public partial class VariableValue
     {
-
         private dynamic mValue;
 
-        public VariableDataTypes Type { get; set; }
+        public VariableDataType Type { get; set; }
 
         [NotMapped]
-        public dynamic Value { get => mValue; set => SetValue(value); }
+        public dynamic Value
+        {
+            get => mValue;
+            set => SetValue(value);
+        }
 
         [JsonIgnore]
         public JObject Json
@@ -50,7 +52,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
                     return;
                 }
 
-                Type = (VariableDataTypes) typeToken.Value<byte>();
+                Type = (VariableDataType) typeToken.Value<byte>();
                 Value = valueToken.Type == JTokenType.Null ? null : valueToken.Value<dynamic>();
             }
         }
@@ -84,25 +86,25 @@ namespace Intersect.GameObjects.Switches_and_Variables
             return Value?.ToString() ?? "No Representation";
         }
 
-        public string ToString(VariableDataTypes forceType)
+        public string ToString(VariableDataType forceType)
         {
             if (Value == null)
             {
                 switch (forceType)
                 {
-                    case VariableDataTypes.Boolean:
+                    case VariableDataType.Boolean:
                         Boolean = false;
 
                         break;
-                    case VariableDataTypes.Integer:
+                    case VariableDataType.Integer:
                         Integer = 0L;
 
                         break;
-                    case VariableDataTypes.Number:
+                    case VariableDataType.Number:
                         Number = 0.0;
 
                         break;
-                    case VariableDataTypes.String:
+                    case VariableDataType.String:
                         String = string.Empty;
 
                         break;
@@ -146,7 +148,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
             get => CanConvertTo<bool>(Value) ? Convert.ToBoolean(Value) : false;
             set
             {
-                Type = VariableDataTypes.Boolean;
+                Type = VariableDataType.Boolean;
                 mValue = value;
             }
         }
@@ -157,7 +159,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
             get => CanConvertTo<long>(Value) ? Convert.ToInt64(Value) : 0;
             set
             {
-                Type = VariableDataTypes.Integer;
+                Type = VariableDataType.Integer;
                 mValue = value;
             }
         }
@@ -168,7 +170,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
             get => CanConvertTo<double>(Value) ? Convert.ToDouble(Value) : 0.0;
             set
             {
-                Type = VariableDataTypes.Number;
+                Type = VariableDataType.Number;
                 mValue = value;
             }
         }
@@ -179,7 +181,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
             get => CanConvertTo<string>(Value) ? Convert.ToString(Value) : "";
             set
             {
-                Type = VariableDataTypes.String;
+                Type = VariableDataType.String;
                 mValue = value ?? "";
             }
         }
@@ -205,11 +207,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
 
         public static implicit operator VariableValue(bool value)
         {
-            return new VariableValue
-            {
-                Type = VariableDataTypes.Boolean,
-                Boolean = value
-            };
+            return new VariableValue { Type = VariableDataType.Boolean, Boolean = value };
         }
 
         public static implicit operator bool(VariableValue variableValue)
@@ -219,11 +217,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
 
         public static implicit operator VariableValue(long value)
         {
-            return new VariableValue
-            {
-                Type = VariableDataTypes.String,
-                Integer = value
-            };
+            return new VariableValue { Type = VariableDataType.String, Integer = value };
         }
 
         public static implicit operator long(VariableValue variableValue)
@@ -233,11 +227,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
 
         public static implicit operator VariableValue(double value)
         {
-            return new VariableValue
-            {
-                Type = VariableDataTypes.Number,
-                Number = value
-            };
+            return new VariableValue { Type = VariableDataType.Number, Number = value };
         }
 
         public static implicit operator double(VariableValue variableValue)
@@ -247,11 +237,7 @@ namespace Intersect.GameObjects.Switches_and_Variables
 
         public static implicit operator VariableValue(string value)
         {
-            return new VariableValue
-            {
-                Type = VariableDataTypes.String,
-                String = value
-            };
+            return new VariableValue { Type = VariableDataType.String, String = value };
         }
 
         public static implicit operator string(VariableValue variableValue)
@@ -260,7 +246,5 @@ namespace Intersect.GameObjects.Switches_and_Variables
         }
 
         #endregion
-
     }
-
 }

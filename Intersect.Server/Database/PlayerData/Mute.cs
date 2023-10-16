@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using Intersect.Logging;
 using Intersect.Server.Localization;
 using Intersect.Server.Networking;
@@ -46,8 +43,8 @@ namespace Intersect.Server.Database.PlayerData
             User = user;
         }
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; private set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public Guid Id { get; private set; } = Guid.NewGuid();
 
         [ForeignKey("Player"), Column("PlayerId")] // SOURCE TODO: Migrate column
         public Guid UserId { get; private set; }
@@ -333,8 +330,7 @@ namespace Intersect.Server.Database.PlayerData
         private static readonly Func<PlayerContext, string, IEnumerable<Mute>> ByIp =
             EF.CompileQuery<PlayerContext, string, Mute>(
                 (context, ip) => context.Mutes.Where(
-                    mute => string.Equals(mute.Ip, ip, StringComparison.OrdinalIgnoreCase) &&
-                            mute.EndTime > DateTime.UtcNow
+                    mute => mute.Ip == ip && mute.EndTime > DateTime.UtcNow
                 )
             ) ??
             throw new InvalidOperationException();

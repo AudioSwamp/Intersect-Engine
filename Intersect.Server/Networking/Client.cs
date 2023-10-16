@@ -1,19 +1,15 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
 using Intersect.ErrorHandling;
 
 using Intersect.Core;
 using Intersect.Logging;
 using Intersect.Network;
 using Intersect.Network.Packets;
-using Intersect.Server.Database;
 using Intersect.Server.Database.PlayerData;
 using Intersect.Server.Database.PlayerData.Security;
 using Intersect.Server.Entities;
 using Intersect.Server.General;
-using Intersect.Server.Networking.Lidgren;
+using Intersect.Server.Networking.LiteNetLib;
 using Intersect.Server.Metrics;
 using Intersect.Utilities;
 
@@ -54,8 +50,11 @@ namespace Intersect.Server.Networking
         //Sent Maps
         public Dictionary<Guid, Tuple<long, int>> SentMaps = new Dictionary<Guid, Tuple<long, int>>();
 
-        public Client(IApplicationContext applicationContext, IConnection connection = null)
+        public Client(IApplicationContext applicationContext, INetwork network, IConnection connection = null)
         {
+            ApplicationContext = applicationContext;
+            Network = network;
+
             this.mConnection = connection;
             mConnectTime = Timing.Global.Milliseconds;
             mConnectionTimeout = Timing.Global.Milliseconds + mTimeout;
@@ -125,6 +124,8 @@ namespace Intersect.Server.Networking
 
         public IApplicationContext ApplicationContext { get; }
 
+        public INetwork Network { get; }
+
         public void SetUser(User user)
         {
             if (user == null)
@@ -134,7 +135,7 @@ namespace Intersect.Server.Networking
 
             if (user != null && user != User)
             {
-                User.Login(user, mConnection.Ip);
+                User.Login(user, mConnection?.Ip);
             }
 
             User = user;
@@ -198,9 +199,9 @@ namespace Intersect.Server.Networking
             return mConnection?.Ip ?? "";
         }
 
-        public static Client CreateBeta4Client(IApplicationContext context, IConnection connection)
+        public static Client CreateBeta4Client(IApplicationContext context, INetwork network, IConnection connection)
         {
-            var client = new Client(context, connection);
+            var client = new Client(context, network, connection);
             lock (Globals.ClientLock)
             {
                 Globals.Clients.Add(client);

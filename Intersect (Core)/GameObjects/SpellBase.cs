@@ -13,11 +13,10 @@ using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
-
     public partial class SpellBase : DatabaseObject<SpellBase>, IFolderable
     {
-
-        [NotMapped] public int[] VitalCost = new int[(int) Vitals.VitalCount];
+        [NotMapped]
+        public int[] VitalCost = new int[(int) Vital.VitalCount];
 
         [JsonConstructor]
         public SpellBase(Guid id) : base(id)
@@ -30,7 +29,7 @@ namespace Intersect.GameObjects
             Name = "New Spell";
         }
 
-        public SpellTypes SpellType { get; set; }
+        public SpellType SpellType { get; set; }
 
         public string Description { get; set; } = "";
 
@@ -50,7 +49,6 @@ namespace Intersect.GameObjects
 
         [Column("HitAnimation")]
         public Guid HitAnimationId { get; set; }
-
 
         [NotMapped]
         [JsonIgnore]
@@ -136,8 +134,8 @@ namespace Intersect.GameObjects
         [JsonIgnore]
         public string VitalCostJson
         {
-            get => DatabaseUtils.SaveIntArray(VitalCost, (int) Vitals.VitalCount);
-            set => VitalCost = DatabaseUtils.LoadIntArray(value, (int) Vitals.VitalCount);
+            get => DatabaseUtils.SaveIntArray(VitalCost, (int) Vital.VitalCount);
+            set => VitalCost = DatabaseUtils.LoadIntArray(value, (int) Vital.VitalCount);
         }
 
         /// <inheritdoc />
@@ -158,15 +156,18 @@ namespace Intersect.GameObjects
                 return Array.Empty<SpellBase>();
             }
 
-            return Lookup.Where(i => ((SpellBase)i.Value).CooldownGroup.Trim() == cooldownGroup).Select(i => (SpellBase)i.Value).ToArray();
+            return Lookup
+                .Where(i => ((SpellBase)i.Value).CooldownGroup.Trim() == cooldownGroup)
+                .Select(i => (SpellBase)i.Value)
+                .ToArray();
         }
     }
 
     [Owned]
     public partial class SpellCombatData
     {
-
-        [NotMapped] public int[] VitalDiff = new int[(int) Vitals.VitalCount];
+        [NotMapped]
+        public int[] VitalDiff = new int[(int) Vital.VitalCount];
 
         public int CritChance { get; set; }
 
@@ -197,8 +198,8 @@ namespace Intersect.GameObjects
         [JsonIgnore]
         public string VitalDiffJson
         {
-            get => DatabaseUtils.SaveIntArray(VitalDiff, (int) Vitals.VitalCount);
-            set => VitalDiff = DatabaseUtils.LoadIntArray(value, (int) Vitals.VitalCount);
+            get => DatabaseUtils.SaveIntArray(VitalDiff, (int) Vital.VitalCount);
+            set => VitalDiff = DatabaseUtils.LoadIntArray(value, (int) Vital.VitalCount);
         }
 
         //Buff/Debuff Data
@@ -206,30 +207,30 @@ namespace Intersect.GameObjects
         [JsonIgnore]
         public string StatDiffJson
         {
-            get => DatabaseUtils.SaveIntArray(StatDiff, (int) Stats.StatCount);
-            set => StatDiff = DatabaseUtils.LoadIntArray(value, (int) Stats.StatCount);
+            get => DatabaseUtils.SaveIntArray(StatDiff, (int) Stat.StatCount);
+            set => StatDiff = DatabaseUtils.LoadIntArray(value, (int) Stat.StatCount);
         }
 
         [NotMapped]
-        public int[] StatDiff { get; set; } = new int[(int) Stats.StatCount];
+        public int[] StatDiff { get; set; } = new int[(int) Stat.StatCount];
 
         //Buff/Debuff Data
         [Column("PercentageStatDiff")]
         [JsonIgnore]
         public string PercentageStatDiffJson
         {
-            get => DatabaseUtils.SaveIntArray(PercentageStatDiff, (int) Stats.StatCount);
-            set => PercentageStatDiff = DatabaseUtils.LoadIntArray(value, (int) Stats.StatCount);
+            get => DatabaseUtils.SaveIntArray(PercentageStatDiff, (int) Stat.StatCount);
+            set => PercentageStatDiff = DatabaseUtils.LoadIntArray(value, (int) Stat.StatCount);
         }
 
         [NotMapped]
-        public int[] PercentageStatDiff { get; set; } = new int[(int) Stats.StatCount];
+        public int[] PercentageStatDiff { get; set; } = new int[(int) Stat.StatCount];
 
         public int Scaling { get; set; } = 0;
 
         public int ScalingStat { get; set; }
 
-        public SpellTargetTypes TargetType { get; set; }
+        public SpellTargetType TargetType { get; set; }
 
         public bool HoTDoT { get; set; }
 
@@ -237,7 +238,7 @@ namespace Intersect.GameObjects
 
         public int Duration { get; set; }
 
-        public StatusTypes Effect { get; set; }
+        public SpellEffect Effect { get; set; }
 
         public string TransformSprite { get; set; }
 
@@ -246,13 +247,11 @@ namespace Intersect.GameObjects
 
         [Column("Trap")]
         public int TrapDuration { get; set; }
-
     }
 
     [Owned]
     public partial class SpellWarpData
     {
-
         public Guid MapId { get; set; }
 
         public int X { get; set; }
@@ -260,13 +259,11 @@ namespace Intersect.GameObjects
         public int Y { get; set; }
 
         public int Dir { get; set; }
-
     }
 
     [Owned]
     public partial class SpellDashOpts
     {
-
         public bool IgnoreMapBlocks { get; set; }
 
         public bool IgnoreActiveResources { get; set; }
@@ -274,7 +271,5 @@ namespace Intersect.GameObjects
         public bool IgnoreInactiveResources { get; set; }
 
         public bool IgnoreZDimensionAttributes { get; set; }
-
     }
-
 }

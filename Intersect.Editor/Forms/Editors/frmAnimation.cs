@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -52,7 +52,7 @@ namespace Intersect.Editor.Forms.Editors
         {
             ApplyHooks();
             InitializeComponent();
-            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            Icon = Program.Icon;
 
             lstGameObjects.Init(UpdateToolStripItems, AssignEditorItem, toolStripItemNew_Click, toolStripItemCopy_Click, toolStripItemUndo_Click, toolStripItemPaste_Click, toolStripItemDelete_Click);
         }
@@ -177,6 +177,7 @@ namespace Intersect.Editor.Forms.Editors
             btnLowerClone.Text = Strings.AnimationEditor.lowerclone;
             chkDisableLowerRotations.Text = Strings.AnimationEditor.disablelowerrotations;
             chkRenderAbovePlayer.Text = Strings.AnimationEditor.renderaboveplayer;
+            grpLowerExtraOptions.Text = Strings.AnimationEditor.extraoptions;
 
             grpUpper.Text = Strings.AnimationEditor.uppergroup;
             lblUpperGraphic.Text = Strings.AnimationEditor.uppergraphic;
@@ -192,6 +193,7 @@ namespace Intersect.Editor.Forms.Editors
             btnUpperClone.Text = Strings.AnimationEditor.upperclone;
             chkDisableUpperRotations.Text = Strings.AnimationEditor.disableupperrotations;
             chkRenderBelowFringe.Text = Strings.AnimationEditor.renderbelowfringe;
+            grpUpperExtraOptions.Text = Strings.AnimationEditor.extraoptions;
 
             //Searching/Sorting
             btnAlphabetical.ToolTipText = Strings.AnimationEditor.sortalphabetically;

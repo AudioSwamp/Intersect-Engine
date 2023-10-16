@@ -1,34 +1,23 @@
 ﻿using Intersect.Core;
 using Intersect.Logging;
 using Intersect.Network;
-using Intersect.Crypto;
-using Intersect.Crypto.Formats;
 using Intersect.Server.Core.Services;
 using Intersect.Server.Database;
 using Intersect.Server.Localization;
 using Intersect.Server.Networking;
-using Intersect.Server.Networking.Helpers;
-using Intersect.Server.Networking.Lidgren;
-using Intersect.Server.Web.RestApi;
+using Intersect.Server.Networking.LiteNetLib;
 
-using Open.Nat;
-
-using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Intersect.Factories;
 using Intersect.Plugins;
 using Intersect.Server.Plugins;
 using Intersect.Server.General;
-using Intersect.Logging.Output;
-using System.Collections.Immutable;
-using System.Collections.Generic;
 using Intersect.Plugins.Interfaces;
+using Intersect.Rsa;
 using Intersect.Server.Database.PlayerData.Players;
+using Intersect.Server.Web;
 
 #if WEBSOCKETS
 using Intersect.Server.Networking.Websockets;
@@ -41,7 +30,11 @@ namespace Intersect.Server.Core
     /// </summary>
     internal sealed partial class ServerContext : ApplicationContext<ServerContext, ServerCommandLineOptions>, IServerContext
     {
-        internal ServerContext(ServerCommandLineOptions startupOptions, Logger logger, IPacketHelper packetHelper) : base(
+        internal ServerContext(
+            ServerCommandLineOptions startupOptions,
+            Logger logger,
+            IPacketHelper packetHelper
+        ) : base(
             startupOptions, logger, packetHelper
         )
         {
@@ -53,18 +46,16 @@ namespace Intersect.Server.Core
                 Options.ServerPort = startupOptions.Port;
             }
 
-            RestApi = new RestApi(startupOptions.ApiPort);
-
-            Network = CreateNetwork(packetHelper);
+            Network = CreateNetwork(this);
         }
+
+        public IApiService ApiService => GetExpectedService<IApiService>();
 
         public IConsoleService ConsoleService => GetExpectedService<IConsoleService>();
 
         public ILogicService LogicService => GetExpectedService<ILogicService>();
 
         public ServerNetwork Network { get; }
-
-        public RestApi RestApi { get; }
 
         #region Startup
 
@@ -86,6 +77,10 @@ namespace Intersect.Server.Core
         #endregion
 
         #region Dispose
+
+        internal int ExitCode { get; set; }
+
+        internal bool DisposeWithoutExiting { get; set; }
 
         protected override void Dispose(bool disposing)
         {
@@ -151,21 +146,16 @@ namespace Intersect.Server.Core
                     }
                 }
 
-
-                // TODO: This needs to not be a global. I'm also in the middle of rewriting the API anyway.
-                Log.Info("Shutting down the API..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
-                RestApi.Dispose();
-
                 #endregion
 
-                if (ThreadConsole?.IsAlive ?? false)
+                if (!DisposeWithoutExiting && (ThreadConsole?.IsAlive ?? false))
                 {
                     Log.Info("Shutting down the console thread..." + $" ({stopwatch.ElapsedMilliseconds}ms)");
                     if (!ThreadConsole.Join(1000))
                     {
                         try
                         {
-                            ThreadConsole.Abort();
+                            ThreadConsole.Interrupt();
                         }
                         catch (ThreadAbortException threadAbortException)
                         {
@@ -181,7 +171,7 @@ namespace Intersect.Server.Core
                     {
                         try
                         {
-                            ThreadLogic.Abort();
+                            ThreadLogic.Interrupt();
                         }
                         catch (ThreadAbortException threadAbortException)
                         {
@@ -196,8 +186,24 @@ namespace Intersect.Server.Core
             Log.Info("Base dispose." + $" ({stopwatch.ElapsedMilliseconds}ms)");
             base.Dispose(disposing);
             Log.Info("Finished disposing server context." + $" ({stopwatch.ElapsedMilliseconds}ms)");
+
+            if (DisposeWithoutExiting)
+            {
+                return;
+            }
+
             Console.WriteLine(Strings.Commands.exited);
-            System.Environment.Exit(-1);
+            Exit();
+        }
+
+        internal void Exit(int? exitCode = null)
+        {
+            Exit(exitCode ?? ExitCode);
+        }
+
+        internal static void Exit(int exitCode)
+        {
+            Environment.Exit(exitCode);
         }
 
         #endregion
@@ -212,7 +218,7 @@ namespace Intersect.Server.Core
 
         #region Network
 
-        private ServerNetwork CreateNetwork(IPacketHelper packetHelper)
+        private ServerNetwork CreateNetwork(IApplicationContext applicationContext)
         {
             ServerNetwork network;
 
@@ -227,16 +233,16 @@ namespace Intersect.Server.Core
             var assembly = Assembly.GetExecutingAssembly();
             using (var stream = assembly.GetManifestResourceStream("Intersect.Server.network.handshake.bkey"))
             {
-                var rsaKey = EncryptionKey.FromStream<RsaKey>(stream ?? throw new InvalidOperationException());
+                var rsaKey = new RsaKey(stream ?? throw new InvalidOperationException());
                 Debug.Assert(rsaKey != null, "rsaKey != null");
-                network = new ServerNetwork(this, packetHelper, new NetworkConfiguration(Options.ServerPort), rsaKey.Parameters);
+                network = new ServerNetwork(this, applicationContext, new NetworkConfiguration(Options.ServerPort), rsaKey.Parameters);
             }
 
             #endregion
 
             #region Configure Packet Handlers
 
-            var packetHandler = new PacketHandler(this, packetHelper.HandlerRegistry);
+            var packetHandler = new PacketHandler(this, applicationContext.PacketHelper.HandlerRegistry);
             network.Handler = packetHandler.HandlePacket;
             network.PreProcessHandler = packetHandler.PreProcessPacket;
 
@@ -265,29 +271,6 @@ namespace Intersect.Server.Core
             Log.Pretty.Info(Strings.Intro.websocketstarted.ToString(Options.ServerPort));
             Console.WriteLine();
 #endif
-
-            RestApi.Start();
-
-            if (!Options.UPnP || Instance.StartupOptions.NoNatPunchthrough)
-            {
-                return;
-            }
-
-            Console.WriteLine();
-
-            UpnP.ConnectNatDevice().Wait(5000);
-#if WEBSOCKETS
-            UpnP.OpenServerPort(Options.ServerPort, Protocol.Tcp).Wait(5000);
-#endif
-            UpnP.OpenServerPort(Options.ServerPort, Protocol.Udp).Wait(5000);
-
-            if (RestApi.IsStarted)
-            {
-                RestApi.Configuration.Ports.ToList()
-                    .ForEach(port => UpnP.OpenServerPort(port, Protocol.Tcp).Wait(5000));
-            }
-
-            Console.WriteLine();
 
             Bootstrapper.CheckNetwork();
 

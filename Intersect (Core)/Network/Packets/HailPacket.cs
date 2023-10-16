@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Security.Cryptography;
 
 using Intersect.Logging;
@@ -21,6 +20,8 @@ namespace Intersect.Network.Packets
         [IgnoreMember]
         private RSAParameters mRsaParameters;
 
+        private byte _symmetricVersion = (byte)(AesGcm.IsSupported ? 1 : 0);
+
         public HailPacket()
         {
         }
@@ -30,7 +31,7 @@ namespace Intersect.Network.Packets
         }
 
         public HailPacket(
-            RSACryptoServiceProvider rsa,
+            RSA rsa,
             byte[] handshakeSecret,
             byte[] versionData,
             RSAParameters rsaParameters
@@ -52,6 +53,13 @@ namespace Intersect.Network.Packets
         {
             get => mRsaParameters;
             set => mRsaParameters = value;
+        }
+
+        [IgnoreMember]
+        public byte SymmetricVersion
+        {
+            get => _symmetricVersion;
+            set => _symmetricVersion = value;
         }
 
         public override bool Encrypt()
@@ -76,6 +84,7 @@ namespace Intersect.Network.Packets
                 buffer.Write(bits);
                 buffer.Write(RsaParameters.Exponent, 3);
                 buffer.Write(RsaParameters.Modulus, bits >> 3);
+                buffer.Write(SymmetricVersion);
 
 #if INTERSECT_DIAGNOSTIC
                 DumpKey(RsaParameters, true);
@@ -83,14 +92,14 @@ namespace Intersect.Network.Packets
 
                 Debug.Assert(mRsa != null, "mRsa != null");
 
-                EncryptedData = mRsa.Encrypt(buffer.ToArray(), true) ??
+                EncryptedData = mRsa.Encrypt(buffer.ToArray(), RSAEncryptionPadding.OaepSHA256) ??
                                 throw new InvalidOperationException("Failed to encrypt the buffer.");
 
                 return true;
             }
         }
 
-        public override bool Decrypt(RSACryptoServiceProvider rsa)
+        public override bool Decrypt(RSA rsa)
         {
             try
             {
@@ -101,7 +110,7 @@ namespace Intersect.Network.Packets
                     throw new ArgumentNullException(nameof(rsa));
                 }
 
-                var decryptedHail = mRsa.Decrypt(EncryptedData, true);
+                var decryptedHail = mRsa.Decrypt(EncryptedData, RSAEncryptionPadding.OaepSHA256);
                 using (var buffer = new MemoryBuffer(decryptedHail))
                 {
                     if (!buffer.Read(out mVersionData))
@@ -148,6 +157,11 @@ namespace Intersect.Network.Packets
                     }
 
                     if (!buffer.Read(out mRsaParameters.Modulus, bits >> 3))
+                    {
+                        return false;
+                    }
+
+                    if (!buffer.Read(out _symmetricVersion))
                     {
                         return false;
                     }

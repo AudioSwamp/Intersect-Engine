@@ -1,5 +1,6 @@
-﻿using Intersect.Enums;
-using Intersect.Server.General;
+﻿using System;
+using Intersect.Enums;
+using Intersect.Logging;
 using Intersect.Server.Networking;
 using Intersect.Utilities;
 
@@ -9,29 +10,24 @@ namespace Intersect.Server.Entities.Combat
     public partial class Dash
     {
 
-        public byte Direction;
+        public Direction Direction;
 
-        public int DistanceTraveled;
-
-        public byte Facing;
+        public Direction Facing;
 
         public int Range;
-
-        public long TransmittionTimer;
 
         public Dash(
             Entity en,
             int range,
-            byte direction,
+            Direction direction,
             bool blockPass = false,
             bool activeResourcePass = false,
             bool deadResourcePass = false,
             bool zdimensionPass = false
         )
         {
-            DistanceTraveled = 0;
             Direction = direction;
-            Facing = (byte) en.Dir;
+            Facing = en.Dir;
 
             CalculateRange(en, range, blockPass, activeResourcePass, deadResourcePass, zdimensionPass);
             if (Range <= 0)
@@ -39,10 +35,9 @@ namespace Intersect.Server.Entities.Combat
                 return;
             } //Remove dash instance if no where to dash
 
-            TransmittionTimer = Timing.Global.Milliseconds + (long) ((float) Options.MaxDashSpeed / (float) Range);
             PacketSender.SendEntityDash(
                 en, en.MapId, (byte) en.X, (byte) en.Y, (int) (Options.MaxDashSpeed * (Range / 10f)),
-                Direction == Facing ? (sbyte) Direction : (sbyte) -1
+                Direction == Facing ? Direction : Direction.None
             );
 
             en.MoveTimer = Timing.Global.Milliseconds + Options.MaxDashSpeed;
@@ -54,43 +49,79 @@ namespace Intersect.Server.Entities.Combat
             bool blockPass = false,
             bool activeResourcePass = false,
             bool deadResourcePass = false,
-            bool zdimensionPass = false
+            bool zDimensionPass = false
         )
         {
-            var n = 0;
-            en.MoveTimer = 0;
             Range = 0;
+            if (en == default)
+            {
+                Log.Error(
+                    new ArgumentNullException(
+                        nameof(en),
+                        "Entity was null when calling CalcuateRange(), this isn't supported."
+                    )
+                );
+                return;
+            }
+
+            en.MoveTimer = 0;
             for (var i = 1; i <= range; i++)
             {
-                n = en.CanMove(Direction);
-                if (n == -5) //Check for out of bounds
+                if (!en.CanMoveInDirection(Direction, out var blockerType, out var blockingEntityType))
                 {
-                    return;
-                } //Check for blocks
+                    switch (blockerType)
+                    {
+                        case MovementBlockerType.OutOfBounds:
+                            return;
+                        
+                        case MovementBlockerType.MapAttribute:
+                            if (!blockPass)
+                            {
+                                return;
+                            }
 
-                if (n == -2 && blockPass == false)
-                {
-                    return;
-                } //Check for ZDimensionTiles
+                            break;
+                        
+                        case MovementBlockerType.ZDimension:
+                            if (!zDimensionPass)
+                            {
+                                return;
+                            }
 
-                if (n == -3 && zdimensionPass == false)
-                {
-                    return;
-                } //Check for active resources
+                            break;
+                        
+                        case MovementBlockerType.Entity:
+                            switch (blockingEntityType)
+                            {
+                                case EntityType.Resource:
+                                    if (activeResourcePass || deadResourcePass)
+                                    {
+                                        break;
+                                    }
 
-                if (n == (int) EntityTypes.Resource && activeResourcePass == false)
-                {
-                    return;
-                } //Check for dead resources
+                                    return;
 
-                if (n == (int) EntityTypes.Resource && deadResourcePass == false)
-                {
-                    return;
-                } //Check for players and solid events
+                                case EntityType.Event:
+                                case EntityType.Player:
+                                    return;
 
-                if (n == (int) EntityTypes.Player || n == (int) EntityTypes.Event)
-                {
-                    return;
+                                case EntityType.GlobalEntity:
+                                case EntityType.Projectile:
+                                    break;
+
+                                default:
+                                    throw new NotImplementedException($"{blockingEntityType} not implemented.");
+                            }
+
+                            break;
+
+                        case MovementBlockerType.NotBlocked:
+                        case MovementBlockerType.Slide:
+                            break;
+
+                        default:
+                            throw new NotImplementedException($"{blockerType} not implemented.");
+                    }
                 }
 
                 en.Move(Direction, null, true);

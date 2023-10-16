@@ -1,5 +1,5 @@
-﻿using Intersect.Logging;
-
+using Intersect.Logging;
+using Intersect.Utilities;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -27,7 +27,6 @@ namespace Intersect.Client
         static void Main(string[] args)
         {
             CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("en-US");
-            CosturaUtility.Initialize();
 
             ExportDependencies();
             Assembly.LoadFile(Path.Combine(Environment.CurrentDirectory, "MonoGame.Framework.Client.dll"));
@@ -53,7 +52,7 @@ namespace Intersect.Client
 
                             if (!string.IsNullOrEmpty(OpenGLLink))
                             {
-                                Process.Start(OpenGLLink);
+                                BrowserUtils.Open(OpenGLLink);
                             }
 
                             Environment.Exit(-1);
@@ -64,7 +63,7 @@ namespace Intersect.Client
                         {
                             if (!string.IsNullOrEmpty(OpenALLink))
                             {
-                                Process.Start(OpenALLink);
+                                BrowserUtils.Open(OpenALLink);
                             }
 
                             Environment.Exit(-1);
@@ -165,7 +164,7 @@ namespace Intersect.Client
 
                 case PlatformID.MacOSX:
                     ExportDependency("libopenal.1.dylib", "");
-                    ExportDependency("libSDL2-2.0.0.dylib", "");
+                    ExportDependency("libSDL2.dylib", "");
                     ExportDependency("openal32.dll", "");
                     ExportDependency("MonoGame.Framework.dll.config", "", "MonoGame.Framework.Client.dll.config");
 
@@ -218,6 +217,7 @@ namespace Intersect.Client
             }
             else
             {
+                Log.Warn($"Was looking for '{resourceName}' but only the following resources were found:\n{string.Join("\n\t", assembly.GetManifestResourceNames())}");
                 var resourceStream = assembly.GetManifestResourceStream("Intersect Client.g.resources");
                 Debug.Assert(resourceStream != null, "resourceStream != null");
                 var resources = new ResourceSet(resourceStream);

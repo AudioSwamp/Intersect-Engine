@@ -68,25 +68,25 @@ namespace Intersect.Editor.Localization
         {
             var pVar = GetVariableComparisonString((dynamic)condition.Comparison);
 
-            if (condition.VariableType == VariableTypes.PlayerVariable)
+            if (condition.VariableType == VariableType.PlayerVariable)
             {
                 return EventConditionDesc.playervariable.ToString(
                     PlayerVariableBase.GetName(condition.VariableId), pVar
                 );
             }
-            else if (condition.VariableType == VariableTypes.ServerVariable)
+            else if (condition.VariableType == VariableType.ServerVariable)
             {
                 return EventConditionDesc.globalvariable.ToString(
                     ServerVariableBase.GetName(condition.VariableId), pVar
                 );
             }
-            else if (condition.VariableType == VariableTypes.GuildVariable)
+            else if (condition.VariableType == VariableType.GuildVariable)
             {
                 return EventConditionDesc.guildvariable.ToString(
                     GuildVariableBase.GetName(condition.VariableId), pVar
                 );
             }
-            else if (condition.VariableType == VariableTypes.UserVariable)
+            else if (condition.VariableType == VariableType.UserVariable)
             {
                 return EventConditionDesc.UserVariable.ToString(
                     Strings.GameObjectStrings.UserVariable,
@@ -105,13 +105,13 @@ namespace Intersect.Editor.Localization
                 var amount = string.Empty;
                 switch (condition.VariableType)
                 {
-                    case VariableTypes.PlayerVariable:
+                    case VariableType.PlayerVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.playervariable, PlayerVariableBase.GetName(condition.VariableId));
                         break;
-                    case VariableTypes.ServerVariable:
+                    case VariableType.ServerVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.globalvariable, ServerVariableBase.GetName(condition.VariableId));
                         break;
-                    case VariableTypes.GuildVariable:
+                    case VariableType.GuildVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.guildvariable, GuildVariableBase.GetName(condition.VariableId));
                         break;
                 }
@@ -144,27 +144,27 @@ namespace Intersect.Editor.Localization
             var pLvl = "";
             switch (condition.Comparator)
             {
-                case VariableComparators.Equal:
+                case VariableComparator.Equal:
                     pLvl = EventConditionDesc.equal.ToString(condition.Value);
 
                     break;
-                case VariableComparators.GreaterOrEqual:
+                case VariableComparator.GreaterOrEqual:
                     pLvl = EventConditionDesc.greaterequal.ToString(condition.Value);
 
                     break;
-                case VariableComparators.LesserOrEqual:
+                case VariableComparator.LesserOrEqual:
                     pLvl = EventConditionDesc.lessthanequal.ToString(condition.Value);
 
                     break;
-                case VariableComparators.Greater:
+                case VariableComparator.Greater:
                     pLvl = EventConditionDesc.greater.ToString(condition.Value);
 
                     break;
-                case VariableComparators.Less:
+                case VariableComparator.Less:
                     pLvl = EventConditionDesc.lessthan.ToString(condition.Value);
 
                     break;
-                case VariableComparators.NotEqual:
+                case VariableComparator.NotEqual:
                     pLvl = EventConditionDesc.notequal.ToString(condition.Value);
 
                     break;
@@ -334,13 +334,13 @@ namespace Intersect.Editor.Localization
                 var amount = string.Empty;
                 switch (condition.VariableType)
                 {
-                    case VariableTypes.PlayerVariable:
+                    case VariableType.PlayerVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.playervariable, PlayerVariableBase.GetName(condition.VariableId));
                         break;
-                    case VariableTypes.ServerVariable:
+                    case VariableType.ServerVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.globalvariable, ServerVariableBase.GetName(condition.VariableId));
                         break;
-                    case VariableTypes.GuildVariable:
+                    case VariableType.GuildVariable:
                         amount = string.Format(@"({0}: {1})", EventConditional.guildvariable, GuildVariableBase.GetName(condition.VariableId));
                         break;
                 }
@@ -363,7 +363,7 @@ namespace Intersect.Editor.Localization
             return EventConditionDesc.checkequippedslot.ToString(condition.Name);
         }
 
-        public static string GetVariableComparisonString(VariableCompaison comparison)
+        public static string GetVariableComparisonString(VariableComparison comparison)
         {
             return "";
         }
@@ -379,19 +379,19 @@ namespace Intersect.Editor.Localization
             }
             else
             {
-                if (comparison.CompareVariableType == VariableTypes.PlayerVariable)
+                if (comparison.CompareVariableType == VariableType.PlayerVariable)
                 {
                     value = EventConditionDesc.playervariablevalue.ToString(
                         PlayerVariableBase.GetName(comparison.CompareVariableId)
                     );
                 }
-                else if (comparison.CompareVariableType == VariableTypes.ServerVariable)
+                else if (comparison.CompareVariableType == VariableType.ServerVariable)
                 {
                     value = EventConditionDesc.globalvariablevalue.ToString(
                         ServerVariableBase.GetName(comparison.CompareVariableId)
                     );
                 }
-                else if (comparison.CompareVariableType == VariableTypes.GuildVariable)
+                else if (comparison.CompareVariableType == VariableType.GuildVariable)
                 {
                     value = EventConditionDesc.guildvariablevalue.ToString(
                         GuildVariableBase.GetName(comparison.CompareVariableId)
@@ -419,22 +419,27 @@ namespace Intersect.Editor.Localization
             if (comparison.CompareVariableId == Guid.Empty)
             {
                 value = comparison.Value.ToString();
+
+                if (comparison.TimeSystem)
+                {
+                    value = EventConditionDesc.SystemTime;
+                }
             }
             else
             {
-                if (comparison.CompareVariableType == VariableTypes.PlayerVariable)
+                if (comparison.CompareVariableType == VariableType.PlayerVariable)
                 {
                     value = EventConditionDesc.playervariablevalue.ToString(
                         PlayerVariableBase.GetName(comparison.CompareVariableId)
                     );
                 }
-                else if (comparison.CompareVariableType == VariableTypes.ServerVariable)
+                else if (comparison.CompareVariableType == VariableType.ServerVariable)
                 {
                     value = EventConditionDesc.globalvariablevalue.ToString(
                         ServerVariableBase.GetName(comparison.CompareVariableId)
                     );
                 }
-                else if (comparison.CompareVariableType == VariableTypes.GuildVariable)
+                else if (comparison.CompareVariableType == VariableType.GuildVariable)
                 {
                     value = EventConditionDesc.guildvariablevalue.ToString(
                         GuildVariableBase.GetName(comparison.CompareVariableId)
@@ -444,27 +449,27 @@ namespace Intersect.Editor.Localization
 
             switch (comparison.Comparator)
             {
-                case VariableComparators.Equal:
+                case VariableComparator.Equal:
                     pVar = EventConditionDesc.equal.ToString(value);
 
                     break;
-                case VariableComparators.GreaterOrEqual:
+                case VariableComparator.GreaterOrEqual:
                     pVar = EventConditionDesc.greaterequal.ToString(value);
 
                     break;
-                case VariableComparators.LesserOrEqual:
+                case VariableComparator.LesserOrEqual:
                     pVar = EventConditionDesc.lessthanequal.ToString(value);
 
                     break;
-                case VariableComparators.Greater:
+                case VariableComparator.Greater:
                     pVar = EventConditionDesc.greater.ToString(value);
 
                     break;
-                case VariableComparators.Less:
+                case VariableComparator.Less:
                     pVar = EventConditionDesc.lessthan.ToString(value);
 
                     break;
-                case VariableComparators.NotEqual:
+                case VariableComparator.NotEqual:
                     pVar = EventConditionDesc.notequal.ToString(value);
 
                     break;
@@ -477,9 +482,9 @@ namespace Intersect.Editor.Localization
         {
             switch (comparison.Comparator)
             {
-                case StringVariableComparators.Equal:
+                case StringVariableComparator.Equal:
                     return EventConditionDesc.equal.ToString(comparison.Value);
-                case StringVariableComparators.Contains:
+                case StringVariableComparator.Contains:
                     return EventConditionDesc.contains.ToString(comparison.Value);
             }
 
@@ -764,6 +769,8 @@ namespace Intersect.Editor.Localization
 
             public static LocalizedString deletetitle = @"Delete Animation";
 
+            public static LocalizedString extraoptions = @"Extra Options:";
+
             public static LocalizedString folderlabel = @"Folder:";
 
             public static LocalizedString foldertitle = @"Add Folder";
@@ -868,18 +875,18 @@ namespace Intersect.Editor.Localization
         {
             public static Dictionary<int, LocalizedString> AttributeTypes = new Dictionary<int, LocalizedString>
             {
-                {(int) MapAttributes.Animation, @"Map Animation" },
-                {(int) MapAttributes.Blocked, @"Blocked" },
-                {(int) MapAttributes.Critter, @"Critter" },
-                {(int) MapAttributes.GrappleStone, @"Grapple Stone" },
-                {(int) MapAttributes.Item, @"Item Spawn" },
-                {(int) MapAttributes.NpcAvoid, @"Npc Avoid" },
-                {(int) MapAttributes.Resource, @"Resource Spawn" },
-                {(int) MapAttributes.Slide, @"Slide" },
-                {(int) MapAttributes.Sound, @"Map Sound" },
-                {(int) MapAttributes.Walkable, @"Walkable" },
-                {(int) MapAttributes.Warp, @"Warp" },
-                {(int) MapAttributes.ZDimension, @"Z-Dimension" },
+                {(int) MapAttribute.Animation, @"Map Animation" },
+                {(int) MapAttribute.Blocked, @"Blocked" },
+                {(int) MapAttribute.Critter, @"Critter" },
+                {(int) MapAttribute.GrappleStone, @"Grapple Stone" },
+                {(int) MapAttribute.Item, @"Item Spawn" },
+                {(int) MapAttribute.NpcAvoid, @"Npc Avoid" },
+                {(int) MapAttribute.Resource, @"Resource Spawn" },
+                {(int) MapAttribute.Slide, @"Slide" },
+                {(int) MapAttribute.Sound, @"Map Sound" },
+                {(int) MapAttribute.Walkable, @"Walkable" },
+                {(int) MapAttribute.Warp, @"Warp" },
+                {(int) MapAttribute.ZDimension, @"Z-Dimension" },
             };
 
             public static string FormatSpawnLevel(int level)
@@ -1011,9 +1018,9 @@ namespace Intersect.Editor.Localization
 
             public static LocalizedString abilitypowerboost = @"Ability Pwr (+{00}):";
 
-            public static LocalizedString addicon = @"+";
+            public static LocalizedString addsprite = @"Add Sprite";
 
-            public static LocalizedString addspell = @"Add";
+            public static LocalizedString addspell = @"Add Spell";
 
             public static LocalizedString armorboost = @"Armor (+{00}):";
 
@@ -1122,7 +1129,7 @@ namespace Intersect.Editor.Localization
 
             public static LocalizedString leveling = @"Leveling Up";
 
-            public static LocalizedString locked = @"Locked";
+            public static LocalizedString locked = @"Class Locked";
 
             public static LocalizedString magicresistboost = @"Magic Resist (+{00}):";
 
@@ -1148,9 +1155,9 @@ namespace Intersect.Editor.Localization
 
 Tick timer saved in server config.json.";
 
-            public static LocalizedString removeicon = @"-";
+            public static LocalizedString removeicon = @"Remove Sprite";
 
-            public static LocalizedString removespell = @"Remove";
+            public static LocalizedString removespell = @"Remove Spell";
 
             public static LocalizedString save = @"Save";
 
@@ -1169,9 +1176,9 @@ Tick timer saved in server config.json.";
 
             public static LocalizedString spawnamount = @"Amount:";
 
-            public static LocalizedString spawnitemadd = @"Add";
+            public static LocalizedString spawnitemadd = @"Add Item";
 
-            public static LocalizedString spawnitemremove = @"Remove";
+            public static LocalizedString spawnitemremove = @"Remove Item";
 
             public static LocalizedString spawnitemdisplay = @"{00} x{01}";
 
@@ -1451,9 +1458,9 @@ Tick timer saved in server config.json.";
 
         }
 
-        public partial struct Directions
+        public partial struct Direction
         {
-            public static Dictionary<int, LocalizedString> CritterDirections = new Dictionary<int, LocalizedString>()
+            public static Dictionary<int, LocalizedString> CritterDirection = new Dictionary<int, LocalizedString>()
             {
                 {0, @"Random"},
                 {1, @"Up"},
@@ -1462,13 +1469,13 @@ Tick timer saved in server config.json.";
                 {4, @"Right"}
             };
 
-            public static Dictionary<int, LocalizedString> dir = new Dictionary<int, LocalizedString>()
+            public static Dictionary<Enums.Direction, LocalizedString> dir = new Dictionary<Enums.Direction, LocalizedString>()
             {
-                {-1, @"Retain Direction"},
-                {0, @"Up"},
-                {1, @"Down"},
-                {2, @"Left"},
-                {3, @"Right"}
+                {Enums.Direction.None, @"Retain Direction"},
+                {Enums.Direction.Up, @"Up"},
+                {Enums.Direction.Down, @"Down"},
+                {Enums.Direction.Left, @"Left"},
+                {Enums.Direction.Right, @"Right"}
             };
 
             public static Dictionary<int, LocalizedString> WarpDirections = new Dictionary<int, LocalizedString>()
@@ -1774,6 +1781,8 @@ Tick timer saved in server config.json.";
 
             public static LocalizedString okay = @"Ok";
 
+            public static LocalizedString RemoveBound = @"Remove Bound Spell ?";
+            
             public static LocalizedString spell = @"Spell: ";
 
             public static LocalizedString title = @"Change Player Spells";
@@ -1845,6 +1854,8 @@ Tick timer saved in server config.json.";
             public static LocalizedString text = @"Text:";
 
             public static LocalizedString title = @"Add Chatbox Text";
+
+            public static LocalizedString ShowChatBubble = @"Show Chat Bubble";
 
         }
 
@@ -2651,6 +2662,8 @@ Tick timer saved in server config.json.";
 
             public static LocalizedString startquest = @"Can Start Quest: {00}";
 
+            public static LocalizedString SystemTime = @"System Time (ms)";
+
             public static LocalizedString tasknotfound = @"Not Found";
 
             public static LocalizedString time = @"Time is between {00} and {01}";
@@ -2996,6 +3009,10 @@ Tick timer saved in server config.json.";
                 {"moveright", @"Move Right"},
                 {"movetowardplayer", @"Move Toward Player"},
                 {"moveup", @"Move Up"},
+                {"moveupleft", @"Move Up Left"},
+                {"moveupright", @"Move Up Right"},
+                {"movedownright", @"Move Down Right"},
+                {"movedownleft", @"Move Down Left"},
                 {"setanimation", @"Set Animation..."},
                 {"setattribute", @"Set Attribute"},
                 {"setgraphic", @"Set Graphic..."},
@@ -3510,7 +3527,7 @@ Tick timer saved in server config.json.";
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public static LocalizedString AddBonusEffect = @"Add";
 
-            public static LocalizedString animation = @"Animation:";
+            public static LocalizedString animation = @"Animation on Use:";
 
             public static LocalizedString attackanimation = @"Extra Attack Animation:";
 
@@ -3613,6 +3630,8 @@ Tick timer saved in server config.json.";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public static LocalizedString IgnoreCooldownReduction = @"Ignore Cooldown Reduction?";
+
+            public static LocalizedString CooldownOptions = @"Cooldown Options";
 
             public static LocalizedString copy = @"Copy Item";
 
@@ -3737,6 +3756,8 @@ Tick timer saved in server config.json.";
             public static LocalizedString destroyspell = @"Destroy On Use?";
 
             public static LocalizedString SingleUseEvent = @"Destroy On Use?";
+
+            public static LocalizedString StackOptions = @"Stackable Options";
 
             public static LocalizedString stackable = @"Stackable?";
 
@@ -3870,14 +3891,14 @@ Tick timer saved in server config.json.";
             public static LocalizedString darkness = @"Darkness";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString EyeDroppler = @"Eyedropper Tool (I)";
+            public static LocalizedString Dropper = @"Dropper (I)";
 
             public static LocalizedString edit = @"Edit";
 
             public static LocalizedString editors = @"Game Editors";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString Erase = @"Erase Tool (E)";
+            public static LocalizedString Erase = @"Erase (E)";
 
             public static LocalizedString exit = @"Exit";
 
@@ -3886,7 +3907,7 @@ Tick timer saved in server config.json.";
             public static LocalizedString file = @"File";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString Fill = @"Fill Layer Tool (F)";
+            public static LocalizedString Fill = @"Fill (F)";
 
             public static LocalizedString fog = @"Fog";
 
@@ -3916,7 +3937,7 @@ Tick timer saved in server config.json.";
             public static LocalizedString Paste = @"Paste (Ctrl + V)";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString Brush = @"Brush Tool (B)";
+            public static LocalizedString Brush = @"Brush (B)";
 
             public static LocalizedString postquestion = @"Post Question";
 
@@ -3925,16 +3946,16 @@ Tick timer saved in server config.json.";
             public static LocalizedString questeditor = @"Quest Editor";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString Rectangle = @"Rectangle Fill Tool (R)";
+            public static LocalizedString Rectangle = @"Rectangle Fill (R)";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public static LocalizedString Redo = @"Redo (Ctrl + Y)";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString FlipHorizontal = @"Horizontal Flip Selection Tool (PageDown)";
+            public static LocalizedString FlipHorizontal = @"Horizontal Flip Selection (PageDown)";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString FlipVertical = @"Vertical Flip Selection Tool (PageUp)";
+            public static LocalizedString FlipVertical = @"Vertical Flip Selection (PageUp)";
 
             public static LocalizedString reportbug = @"Report Bug";
 
@@ -3955,7 +3976,7 @@ Tick timer saved in server config.json.";
             public static LocalizedString screenshot = @"Screenshot Map";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static LocalizedString Selection = @"Marquee Selection Tool (M)";
+            public static LocalizedString Selection = @"Marquee Selection (M)";
 
             public static LocalizedString selectlayers = @"Select...";
 
@@ -4100,12 +4121,12 @@ Tick timer saved in server config.json.";
 
         public partial struct Mapping
         {
-            public static Dictionary<int, LocalizedString> InstanceTypes = new Dictionary<int, LocalizedString>()
+            public static LocaleDictionary<MapInstanceType, LocalizedString> InstanceTypes = new LocaleDictionary<MapInstanceType, LocalizedString>()
             {
-                {(int)MapInstanceType.Overworld, @"Overworld"},
-                {(int)MapInstanceType.Personal, @"Personal"},
-                {(int)MapInstanceType.Guild, @"Guild"},
-                {(int)MapInstanceType.Shared, @"Shared"},
+                {MapInstanceType.Overworld, @"Overworld"},
+                {MapInstanceType.Personal, @"Personal"},
+                {MapInstanceType.Guild, @"Guild"},
+                {MapInstanceType.Shared, @"Shared"},
             };
 
             public static LocalizedString createmap = @"Create new map.";
@@ -4327,7 +4348,7 @@ Tick timer saved in server config.json.";
 
             public static LocalizedString folderprompt = @"Enter a name for the folder you'd like to add:";
 
-            public static LocalizedString frequency = @"Freq:";
+            public static LocalizedString frequency = @"Frequency:";
 
             public static Dictionary<int, LocalizedString> frequencies = new Dictionary<int, LocalizedString>
             {
@@ -4449,16 +4470,16 @@ Tick timer saved in server config.json.";
             public static LocalizedString Tenacity = @"Tenacity (%):";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static Dictionary<StatusTypes, LocalizedString> Immunities = new Dictionary<StatusTypes, LocalizedString>
+            public static Dictionary<SpellEffect, LocalizedString> Immunities = new Dictionary<SpellEffect, LocalizedString>
             {
-                {StatusTypes.Knockback, @"Knockback"},
-                {StatusTypes.Silence, @"Silence"},
-                {StatusTypes.Stun, @"Stun"},
-                {StatusTypes.Snare, @"Snare"},
-                {StatusTypes.Blind, @"Blind"},
-                {StatusTypes.Transform, @"Transform"},
-                {StatusTypes.Sleep, @"Sleep"},
-                {StatusTypes.Taunt, @"Taunt"},
+                {SpellEffect.Knockback, @"Knockback"},
+                {SpellEffect.Silence, @"Silence"},
+                {SpellEffect.Stun, @"Stun"},
+                {SpellEffect.Snare, @"Snare"},
+                {SpellEffect.Blind, @"Blind"},
+                {SpellEffect.Transform, @"Transform"},
+                {SpellEffect.Sleep, @"Sleep"},
+                {SpellEffect.Taunt, @"Taunt"},
             };
 
         }
@@ -4520,6 +4541,9 @@ Tick timer saved in server config.json.";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public static LocalizedString TextureSize = @"Max Texture Pack Size (Resolution):";
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public static LocalizedString CursorSprites = @"Enable cursor sprites for map tools.";
         }
 
         public partial struct ProgressForm
@@ -4571,12 +4595,12 @@ Tick timer saved in server config.json.";
             public static LocalizedString GrappleOptionsTitle = @"Grapple Options";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public static Dictionary<GrappleOptions, LocalizedString> GrappleOpts = new Dictionary<GrappleOptions, LocalizedString>
+            public static Dictionary<GrappleOption, LocalizedString> GrappleOpts = new Dictionary<GrappleOption, LocalizedString>
             {
-                {GrappleOptions.MapAttribute, @"On Map Attribute"},
-                {GrappleOptions.Player, @"On Player"},
-                {GrappleOptions.NPC, @"On NPC"},
-                {GrappleOptions.Resource, @"On Resource"},
+                {GrappleOption.MapAttribute, @"On Map Attribute"},
+                {GrappleOption.Player, @"On Player"},
+                {GrappleOption.NPC, @"On NPC"},
+                {GrappleOption.Resource, @"On Resource"},
             };
 
             public static LocalizedString ignoreactiveresources = @"Active Resources";

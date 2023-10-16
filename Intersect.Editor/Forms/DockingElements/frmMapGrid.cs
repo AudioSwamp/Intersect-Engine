@@ -10,6 +10,8 @@ using Microsoft.Xna.Framework.Graphics;
 
 using WeifenLuo.WinFormsUI.Docking;
 
+using Graphics = Intersect.Editor.Core.Graphics;
+
 namespace Intersect.Editor.Forms.DockingElements
 {
 
@@ -36,7 +38,7 @@ namespace Intersect.Editor.Forms.DockingElements
         public FrmMapGrid()
         {
             InitializeComponent();
-            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            Icon = Program.Icon;
 
             pnlMapGrid.MouseWheel += PnlMapGrid_MouseWheel;
         }

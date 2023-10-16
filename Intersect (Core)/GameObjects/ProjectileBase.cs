@@ -8,19 +8,34 @@ using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
-
     public partial class ProjectileBase : DatabaseObject<ProjectileBase>, IFolderable
     {
-
         public const int MAX_PROJECTILE_DIRECTIONS = 8;
+
+        public static readonly int[] ProjectileRotationDir =
+        {
+            0, 1, 2, 3, 4, 5, 7, 6, // Up
+            1, 0, 3, 2, 6, 7, 5, 4, // Down
+            2, 3, 1, 0, 7, 4, 6, 5, // Left
+            3, 2, 0, 1, 5, 6, 4, 7, // Right
+            4, 6, 7, 5, 2, 0, 1, 3, // UpLeft
+            5, 7, 4, 6, 0, 3, 2, 1, // UpRight
+            6, 4, 5, 7, 3, 1, 0, 2, // DownRight
+            7, 5, 6, 4, 1, 2, 3, 0 // DownLeft
+        };
 
         public const int SPAWN_LOCATIONS_HEIGHT = 5;
 
         public const int SPAWN_LOCATIONS_WIDTH = 5;
 
-        [NotMapped] public List<ProjectileAnimation> Animations = new List<ProjectileAnimation>();
+        [NotMapped]
+        public List<ProjectileAnimation> Animations = new List<ProjectileAnimation>();
 
-        [NotMapped] public Location[,] SpawnLocations = new Location[SPAWN_LOCATIONS_WIDTH, SPAWN_LOCATIONS_HEIGHT];
+        [NotMapped]
+        public Location[,] SpawnLocations = new Location[
+            SPAWN_LOCATIONS_WIDTH,
+            SPAWN_LOCATIONS_HEIGHT
+        ];
 
         //Init
         [JsonConstructor]
@@ -100,7 +115,7 @@ namespace Intersect.GameObjects
         }
 
         [NotMapped]
-        public List<GrappleOptions> GrappleHookOptions = new List<GrappleOptions>();
+        public List<GrappleOption> GrappleHookOptions = new List<GrappleOption>();
 
         [JsonIgnore]
         [Column("GrappleHookOptions")]
@@ -109,7 +124,7 @@ namespace Intersect.GameObjects
             get => JsonConvert.SerializeObject(GrappleHookOptions);
             set
             {
-                GrappleHookOptions = JsonConvert.DeserializeObject<List<GrappleOptions>>(value ?? "") ?? new List<GrappleOptions>();
+                GrappleHookOptions = JsonConvert.DeserializeObject<List<GrappleOption>>(value ?? "") ?? new List<GrappleOption>();
             }
         }
 
@@ -128,19 +143,15 @@ namespace Intersect.GameObjects
 
         /// <inheritdoc />
         public string Folder { get; set; } = "";
-
     }
 
     public partial class Location
     {
-
         public bool[] Directions = new bool[ProjectileBase.MAX_PROJECTILE_DIRECTIONS];
-
     }
 
     public partial class ProjectileAnimation
     {
-
         public Guid AnimationId;
 
         public bool AutoRotate;
@@ -153,7 +164,5 @@ namespace Intersect.GameObjects
             SpawnRange = spawnRange;
             AutoRotate = autoRotate;
         }
-
     }
-
 }

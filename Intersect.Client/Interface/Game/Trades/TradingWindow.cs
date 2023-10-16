@@ -121,6 +121,7 @@ namespace Intersect.Client.Interface.Game.Trades
 
         public void Close()
         {
+            mContextMenu?.Close();
             mTradeWindow.Close();
         }
 
@@ -165,12 +166,6 @@ namespace Intersect.Client.Interface.Game.Trades
                         }
                         else
                         {
-                            TradeSegment[n].Values[i].IsHidden = true;
-                        }
-
-                        if (TradeSegment[n].Items[i].IsDragging)
-                        {
-                            TradeSegment[n].Items[i].Pnl.IsHidden = true;
                             TradeSegment[n].Values[i].IsHidden = true;
                         }
 

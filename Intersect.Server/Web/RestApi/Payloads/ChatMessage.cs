@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
-using System.Net.Http;
-using System.Web.Http.Routing;
-
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Newtonsoft.Json;
 
 namespace Intersect.Server.Web.RestApi.Payloads
@@ -45,21 +42,18 @@ namespace Intersect.Server.Web.RestApi.Payloads
 
         }
 
-        internal sealed partial class Constraint : IHttpRouteConstraint
+        internal sealed partial class RouteConstraint : IRouteConstraint
         {
-
-            /// <inheritdoc />
             public bool Match(
-                HttpRequestMessage request,
-                IHttpRoute route,
-                string parameterName,
-                IDictionary<string, object> values,
-                HttpRouteDirection routeDirection
+                HttpContext httpContext,
+                IRouter route,
+                string routeKey,
+                RouteValueDictionary values,
+                RouteDirection routeDirection
             )
             {
-                return values.TryGetValue(parameterName, out var value) && value != null;
+                return values.TryGetValue(routeKey, out var value) && value != null;
             }
-
         }
 
     }

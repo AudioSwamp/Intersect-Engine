@@ -4,39 +4,63 @@ Intersect provides a complete game development suite for creating 2d mmorpgs wit
 
 [![Home https://freemmorpgmaker.com](https://img.shields.io/badge/Home-Free%20MMORPG%20Maker-informational)](https://freemmorpgmaker.com)
 [![Docs https://docs.freemmorpgmaker.com](https://img.shields.io/badge/Docs-Online-success)](https://docs.freemmorpgmaker.com)
+[![main](https://github.com/AscensionGameDev/Intersect-Engine/actions/workflows/build.yml/badge.svg)](https://github.com/AscensionGameDev/Intersect-Engine/actions/workflows/build.yml)
 [![Visit us at https://ascensiongamedev.com](https://img.shields.io/badge/Community-Ascension%20Game%20Dev-orange)](https://ascensiongamedev.com)
 [![Join the chat at https://discord.gg/Ggt3KJV](https://img.shields.io/discord/363106200243535872?color=%237289DA&label=Discord&logoColor=white)](https://discord.gg/Ggt3KJV)
 
- * [Build Status](#build-status)
- * [Supported Platforms](#supported-platforms)
- * [Intersect Assets](#intersect-assets)
- * [Support and Contributions](#support-and-contributions)
- * [Source Code](#source-code)
- * [Licensing](#licensing)
- * [Helpful Links](#helpful-links)
+- [Intersect Engine](#intersect-engine)
+	- [Automated Builds](#automated-builds)
+	- [Supported Platforms](#supported-platforms)
+	- [Compiling/Development](#compilingdevelopment)
+		- [Dependencies](#dependencies)
+			- [Required](#required)
+		- [Getting started](#getting-started)
+		- [Compiling](#compiling)
+	- [Intersect Assets](#intersect-assets)
+	- [Support and Contributions](#support-and-contributions)
+	- [Source Code](#source-code)
+	- [Licensing](#licensing)
+	- [Helpful Links](#helpful-links)
 
 
-## Build Status
+## Automated Builds
 
-Our [build server](https://teamcity.freemmorpgmaker.com/?guest=1) builds, tests, and packages the latest Intersect changes.  The table below shows the current build status for the master and development branches.
-
-| Name  | Status |
-|:---|--------|
-| Master (Stable) | [![Build Status](https://teamcity.freemmorpgmaker.com/app/rest/builds/buildType:stable/statusIcon)](https://teamcity.freemmorpgmaker.com/viewType.html?buildTypeId=stable&guest=1) |
-| Prerelease (Nightly) | [![Build Status](https://teamcity.freemmorpgmaker.com/app/rest/builds/buildType:prerelease/statusIcon)](https://teamcity.freemmorpgmaker.com/viewType.html?buildTypeId=prerelease&guest=1) |
-
+We use [GitHub Actions](https://github.com/AscensionGameDev/Intersect-Engine/actions) for building and packaging the latest updates for the engine. Releases with downloadable bundles can be found on the [Releases page on our GitHub repository](https://github.com/AscensionGameDev/Intersect-Engine/releases).
 
 ## Supported Platforms
 
- * Desktop PCs (Open GL)
-    * Windows
-    * Mac OS X
-    * Linux
+Please refer to the [Requirements](./REQUIREMENTS.md) document for support matrices.
 
 Our editor uses DirectX and must be ran in Windows, but you can host and play your game on any desktop os that supports OpenGL.
 
 We're open to expanding to new platforms (mobile, web, etc) but don't have the capacity to do so at this time. If you're interested in helping out let us know!
 
+## Compiling/Development
+
+### Dependencies
+
+#### Required
+
+- [.NET 7 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/7.0), verified for v7.0.11 (SDK 7.0.401)
+- git: required for cloning submodules, if you want to do this manually you don't need this and use the .zip download but that is not supported
+  - Tested on 2.42.0
+
+### Getting started
+
+After cloning, run `scripts/clone.sh` for non-Windows systems, and `scripts/clone.ps1` for Windows
+- On all platforms this clones any submodules via `git submodule update --init --recursive`
+- Via the .sh file it will also disable the Windows-only editor via `git apply disable-windows-editor.patch`
+
+### Compiling
+
+To compile either use an IDE or one of the following commands:
+- `dotnet build -p:Configuration=Debug -p:PackageVersion=0.8.0-beta -p:Version=0.8.0`
+  - Debug builds, all debug builds will _not_ create single-file binary outputs
+- `dotnet build -p:Configuration=Release -p:PackageVersion=0.8.0-beta -p:Version=0.8.0`
+	- Release builds will create single-file binary outputs but to get a clean output use `dotnet publish`
+- `dotnet publish -p:Configuration=Release -p:PackageVersion=0.8.0-beta -p:Version=0.8.0 -r <runtime-id>`
+	- e.g. `dotnet publish -p:Configuration=Release -p:PackageVersion=0.8.0-beta -p:Version=0.8.0 -r linux-x64`
+	- The automated builds use the above command for the RIDs `linux-x64`, `osx-x64` and `win-x64`
 
 ## Intersect Assets
 
@@ -50,10 +74,6 @@ If you think you have found a bug or have a feature request, use our [issue trac
 If you need help using Intersect or have other questions we suggest you post on our [community forums](https://ascensiongamedev.com).  Please do not use the GitHub issue tracker for personal support requests.
 
 If you are interested in contributing fixes or features to Intersect, please read our [contributors guide](CONTRIBUTING.md) first.
-
-### Donations
-
-If you'd like to help the project by supporting us financially we accept and greatly appreciate donations at [Ascension Game Dev](https://www.ascensiongamedev.com/donate/make-donation/).
 
 
 ## Source Code
@@ -72,16 +92,16 @@ We have [documentation here](https://docs.freemmorpgmaker.com/developer/start/vs
 
 This project has split licensing. See license.md within each of the projects' folders.
 
-| Project  | License |
-|:---|--------|
-| Intersect.Core | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license) |
-| Intersect.Client | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license) |
-| Intersect.Client.Framework | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license) |
-| Intersect.Network | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license) |
-| Intersect.Editor | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
-| Intersect.Server | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
+| Project                    | License                                                                                                                                      |
+| :------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Intersect.Core             | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license)                               |
+| Intersect.Client           | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license)                               |
+| Intersect.Client.Framework | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license)                               |
+| Intersect.Network          | [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://tldrlegal.com/license/mit-license)                               |
+| Intersect.Editor           | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
+| Intersect.Server           | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
 | Intersect.Server.Framework | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
-| Intersect.Utilities | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
+| Intersect.Utilities        | [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)) |
 
 Third-party libraries used by Intersect are under their own licenses.  Please refer to those libraries for details on the license they use.
 

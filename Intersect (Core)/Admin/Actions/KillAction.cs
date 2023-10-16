@@ -1,4 +1,3 @@
-﻿using Intersect.Enums;
 using MessagePack;
 
 namespace Intersect.Admin.Actions
@@ -18,11 +17,9 @@ namespace Intersect.Admin.Actions
         }
 
         [Key(1)]
-        public override AdminActions Action { get; } = AdminActions.Kill;
+        public override Enums.AdminAction Action { get; } = Enums.AdminAction.Kill;
 
         [Key(2)]
         public string Name { get; set; }
-
     }
-
 }

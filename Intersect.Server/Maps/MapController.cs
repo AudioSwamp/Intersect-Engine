@@ -135,6 +135,18 @@ namespace Intersect.Server.Maps
         }
 
         /// <summary>
+        /// Tries to get a Map Controller from its <see cref="MapBase"/> ID
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="mapController">The retrieved Map Controller, if successful</param>
+        /// <returns><c>true</c> if the Map Controller was found; otherwise, <c>false</c></returns>
+        public static bool TryGet(Guid id, out MapController mapController)
+        {
+            mapController = Lookup.Get<MapController>(id);
+            return mapController != null;
+        }
+
+        /// <summary>
         /// Tries to get a <see cref="MapInstance"/> when given an instanceId.
         /// </summary>
         /// <param name="mapControllerId">The id of the <see cref="MapController"/></param>
@@ -350,24 +362,24 @@ namespace Intersect.Server.Maps
         /// Destroys connections to other maps from this controller
         /// </summary>
         /// <param name="side">Which side to destroy connections from. -1 will clear all directionsm and is the default</param>
-        public void ClearConnections(int side = -1)
+        public void ClearConnections(Direction side = Direction.None)
         {
-            if (side == -1 || side == (int) Directions.Up)
+            if (side == Direction.None || side == Direction.Up)
             {
                 Up = Guid.Empty;
             }
 
-            if (side == -1 || side == (int) Directions.Down)
+            if (side == Direction.None || side == Direction.Down)
             {
                 Down = Guid.Empty;
             }
 
-            if (side == -1 || side == (int) Directions.Left)
+            if (side == Direction.None || side == Direction.Left)
             {
                 Left = Guid.Empty;
             }
 
-            if (side == -1 || side == (int) Directions.Right)
+            if (side == Direction.None || side == Direction.Right)
             {
                 Right = Guid.Empty;
             }

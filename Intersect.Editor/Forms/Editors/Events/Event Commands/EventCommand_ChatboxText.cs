@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 using Intersect.Editor.General;
 using Intersect.Editor.Localization;
 using Intersect.Enums;
 using Intersect.GameObjects.Events.Commands;
+using Intersect.Utilities;
 
 namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
 {
@@ -36,6 +37,7 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             }
 
             cmbChannel.SelectedIndex = (int) mMyCommand.Channel;
+            chkShowChatBubble.Checked = mMyCommand.ShowChatBubble;
         }
 
         private void InitLocalization()
@@ -50,6 +52,7 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             {
                 cmbChannel.Items.Add(Strings.EventChatboxText.channels[i]);
             }
+            chkShowChatBubble.Text = Strings.EventChatboxText.ShowChatBubble;
 
             btnSave.Text = Strings.EventChatboxText.okay;
             btnCancel.Text = Strings.EventChatboxText.cancel;
@@ -60,6 +63,7 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
             mMyCommand.Text = txtAddText.Text;
             mMyCommand.Color = cmbColor.Text;
             mMyCommand.Channel = (ChatboxChannel) cmbChannel.SelectedIndex;
+            mMyCommand.ShowChatBubble = chkShowChatBubble.Checked;
             mEventEditor.FinishCommandEdit();
         }
 
@@ -70,9 +74,7 @@ namespace Intersect.Editor.Forms.Editors.Events.Event_Commands
 
         private void lblCommands_Click(object sender, EventArgs e)
         {
-            System.Diagnostics.Process.Start(
-                "http://www.ascensiongamedev.com/community/topic/749-event-text-variables/"
-            );
+            BrowserUtils.Open("http://www.ascensiongamedev.com/community/topic/749-event-text-variables/");
         }
 
     }

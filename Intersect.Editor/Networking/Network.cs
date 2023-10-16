@@ -7,17 +7,64 @@ using Intersect.Configuration;
 using Intersect.Editor.General;
 using Intersect.Logging;
 using Intersect.Network;
-using Intersect.Crypto;
-using Intersect.Crypto.Formats;
 using Intersect.Network.Events;
 using Intersect.Core;
 using System.Collections.Generic;
 using Intersect.Threading;
 using Intersect.Plugins.Helpers;
 using Intersect.Plugins.Interfaces;
+using Intersect.Rsa;
+using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using Intersect.Utilities;
+using Intersect.Network.Packets.Unconnected.Client;
 
 namespace Intersect.Editor.Networking
 {
+
+    internal sealed class VirtualApplicationContext : IApplicationContext
+    {
+        public VirtualApplicationContext(IPacketHelper packetHelper)
+        {
+            PacketHelper = packetHelper;
+        }
+
+        public bool HasErrors => throw new NotImplementedException();
+
+        public bool IsDisposed => throw new NotImplementedException();
+
+        public bool IsStarted => throw new NotImplementedException();
+
+        public bool IsRunning => throw new NotImplementedException();
+
+        public ICommandLineOptions StartupOptions => throw new NotImplementedException();
+
+        public Logger Logger => throw new NotImplementedException();
+
+        public IPacketHelper PacketHelper { get; }
+
+        public List<IApplicationService> Services => throw new NotImplementedException();
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public TApplicationService GetService<TApplicationService>() where TApplicationService : IApplicationService
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Start(bool lockUntilShutdown = true)
+        {
+            throw new NotImplementedException();
+        }
+
+        public LockingActionQueue StartWithActionQueue()
+        {
+            throw new NotImplementedException();
+        }
+    }
 
     internal static partial class Network
     {
@@ -26,11 +73,21 @@ namespace Intersect.Editor.Networking
 
         public static bool ConnectionDenied;
 
-        public static ClientNetwork EditorLidgrenNetwork;
+        public static ClientNetwork EditorLidgrenNetwork { get; set; }
 
         internal static PacketHandler PacketHandler { get; private set; }
 
         public static bool Connected => EditorLidgrenNetwork?.IsConnected ?? false;
+
+        public static void Connect()
+        {
+            if (EditorLidgrenNetwork?.Connect() ?? true)
+            {
+                return;
+            }
+
+            Log.Warn("Failed to connect to server.");
+        }
 
         public static void InitNetwork()
         {
@@ -44,6 +101,7 @@ namespace Intersect.Editor.Networking
                 }
 
                 var packetHandlerRegistry = new PacketHandlerRegistry(packetTypeRegistry, logger);
+                packetHandlerRegistry.TryRegisterAvailableTypeHandlers(typeof(Network).Assembly, requireAttribute: true);
                 var packetHelper = new PacketHelper(packetTypeRegistry, packetHandlerRegistry);
                 PackedIntersectPacket.AddKnownTypes(packetHelper.AvailablePacketTypes);
                 var virtualEditorContext = new VirtualEditorContext(packetHelper, logger);
@@ -53,12 +111,13 @@ namespace Intersect.Editor.Networking
                     ClientConfiguration.Instance.Host, ClientConfiguration.Instance.Port
                 );
 
+                var virtualApplicationContext = new VirtualApplicationContext(packetHelper);
                 var assembly = Assembly.GetExecutingAssembly();
                 using (var stream = assembly.GetManifestResourceStream("Intersect.Editor.network.handshake.bkey.pub"))
                 {
-                    var rsaKey = EncryptionKey.FromStream<RsaKey>(stream);
+                    var rsaKey = new RsaKey(stream);
                     Debug.Assert(rsaKey != null, "rsaKey != null");
-                    EditorLidgrenNetwork = new ClientNetwork(packetHelper, config, rsaKey.Parameters);
+                    EditorLidgrenNetwork = new ClientNetwork(virtualApplicationContext, config, rsaKey.Parameters);
                 }
 
                 EditorLidgrenNetwork.Handler = PacketHandler.HandlePacket;
@@ -73,15 +132,100 @@ namespace Intersect.Editor.Networking
             if (!Connected)
             {
                 Connecting = true;
-                if (!EditorLidgrenNetwork.Connect())
-                {
-                    Log.Error("An error occurred while attempting to connect.");
-                }
             }
+        }
+
+        /// <summary>
+        /// Interval between status pings in ms (e.g. full, bad version, etc.)
+        /// </summary>
+#if DEBUG
+        private const long ServerStatusPingInterval = 1_000;
+#else
+        private const long ServerStatusPingInterval = 15_000;
+#endif
+
+        private static long _nextServerStatusPing;
+
+        private static string? _lastHost;
+        private static int? _lastPort;
+        private static IPEndPoint? _lastEndpoint;
+
+        private static bool TryResolveEndPoint([NotNullWhen(true)] out IPEndPoint? endPoint)
+        {
+            var currentHost = ClientConfiguration.Instance.Host;
+            if (!string.Equals(_lastHost, currentHost))
+            {
+                _lastHost = currentHost;
+                _lastEndpoint = default;
+            }
+
+            var currentPort = ClientConfiguration.Instance.Port;
+            if (_lastPort != currentPort)
+            {
+                _lastPort = currentPort;
+                _lastEndpoint = default;
+            }
+
+            if (string.IsNullOrWhiteSpace(_lastHost))
+            {
+                endPoint = default;
+                return false;
+            }
+
+            if (_lastEndpoint != default)
+            {
+                endPoint = _lastEndpoint;
+                return true;
+            }
+
+            var address = Dns.GetHostAddresses(_lastHost).FirstOrDefault();
+            var port = _lastPort;
+            if (address == default || !port.HasValue)
+            {
+                endPoint = default;
+                return false;
+            }
+
+            endPoint = new IPEndPoint(address, port.Value);
+            _lastEndpoint = endPoint;
+            return true;
         }
 
         public static void Update()
         {
+            if (Globals.LoginForm?.Visible ?? false)
+            {
+                var now = Timing.Global.MillisecondsUtc;
+                // ReSharper disable once InvertIf
+                if (_nextServerStatusPing <= now)
+                {
+                    if (TryResolveEndPoint(out var serverEndpoint))
+                    {
+                        var network = EditorLidgrenNetwork;
+                        if (network == default)
+                        {
+                            Log.Info("No network created to poll for server status.");
+                        }
+                        else
+                        {
+                            network.SendUnconnected(serverEndpoint, new ServerStatusRequestPacket());
+                        }
+                    }
+                    else
+                    {
+                        Log.Info($"Unable to resolve '{_lastHost}:{_lastPort}'");
+                    }
+
+                    if (Globals.LoginForm.LastNetworkStatusChangeTime + ServerStatusPingInterval + ServerStatusPingInterval / 2 < now)
+                    {
+                        Globals.LoginForm.SetNetworkStatus(NetworkStatus.Offline);
+                    }
+
+                    _nextServerStatusPing = now + ServerStatusPingInterval;
+                    Globals.NextServerStatusPing = _nextServerStatusPing;
+                }
+            }
+
             if (!Connected && !Connecting && !ConnectionDenied)
             {
                 InitNetwork();

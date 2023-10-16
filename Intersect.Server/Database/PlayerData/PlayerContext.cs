@@ -1,41 +1,40 @@
-using System.Data.Common;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Intersect.Config;
+using Intersect.Extensions;
 using Intersect.Server.Database.PlayerData.Api;
 using Intersect.Server.Database.PlayerData.Migrations;
 using Intersect.Server.Database.PlayerData.Players;
 using Intersect.Server.Database.PlayerData.SeedData;
 using Intersect.Server.Entities;
-
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Intersect.Server.Database.PlayerData
 {
-
-    public partial class PlayerContext : IntersectDbContext<PlayerContext>, IPlayerContext
+    /// <summary>
+    /// MySQL/MariaDB-specific implementation of <see cref="PlayerContext"/>
+    /// </summary>
+    public sealed class MySqlPlayerContext : PlayerContext, IMySqlDbContext
     {
+        /// <inheritdoc />
+        public MySqlPlayerContext(DatabaseContextOptions databaseContextOptions) : base(databaseContextOptions) { }
 
-        public PlayerContext() : base(DefaultConnectionStringBuilder)
-        {
-        }
+        public override DatabaseType DatabaseType => DatabaseType.MySql;
+    }
 
-        public PlayerContext(
-            DbConnectionStringBuilder connectionStringBuilder,
-            DatabaseOptions.DatabaseType databaseType,
-            bool readOnly = false,
-            Intersect.Logging.Logger logger = null,
-            Intersect.Logging.LogLevel logLevel = Intersect.Logging.LogLevel.None
-        ) : base(connectionStringBuilder, databaseType, logger, logLevel, readOnly, false)
-        {
-        }
+    /// <summary>
+    /// SQLite-specific implementation of <see cref="PlayerContext"/>
+    /// </summary>
+    public sealed class SqlitePlayerContext : PlayerContext, ISqliteDbContext
+    {
+        /// <inheritdoc />
+        public SqlitePlayerContext(DatabaseContextOptions databaseContextOptions) : base(databaseContextOptions) { }
 
-        public static DbConnectionStringBuilder DefaultConnectionStringBuilder =>
-            new SqliteConnectionStringBuilder(@"Data Source=resources/playerdata.db");
+        public override DatabaseType DatabaseType => DatabaseType.Sqlite;
+    }
+
+    public abstract partial class PlayerContext : IntersectDbContext<PlayerContext>, IPlayerContext
+    {
+        /// <inheritdoc />
+        protected PlayerContext(DatabaseContextOptions databaseContextOptions) : base(databaseContextOptions) { }
 
         public DbSet<User> Users { get; set; }
 
@@ -154,18 +153,6 @@ namespace Intersect.Server.Database.PlayerData
             if (migrations.IndexOf("20220331140427_GuildBankMaxSlotsMigration") > -1)
             {
                 GuildBankMaxSlotMigration.Run(this);
-            }
-        }
-
-        public void DetachExcept<TEntity>(params TEntity[] entities)
-        {
-            var entriesToDetach = ChangeTracker.Entries().Where(entry => entry.State != EntityState.Detached && entry.State != EntityState.Unchanged && entry.Entity is TEntity).ToList();
-            foreach (var entry in entriesToDetach)
-            {
-                if (entry.Entity is TEntity other && !entities.Contains(other))
-                {
-                    entry.State = EntityState.Detached;
-                }
             }
         }
 

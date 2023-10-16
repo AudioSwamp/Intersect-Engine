@@ -81,23 +81,25 @@ namespace Intersect.Client.Interface.Game.Inventory
             // Add our use Item prompt, assuming we have a valid usecase.
             switch (item.ItemType)
             {
-                case Enums.ItemTypes.Spell:
+                case Enums.ItemType.Spell:
                     mContextMenu.AddChild(mUseItemContextItem);
-                    mUseItemContextItem.SetText(Strings.ItemContextMenu.Learn.ToString(item.Name));
+                    mUseItemContextItem.SetText(item.QuickCast
+                        ? Strings.ItemContextMenu.Cast.ToString(item.Name)
+                        : Strings.ItemContextMenu.Learn.ToString(item.Name));
                     break;
 
-                case Enums.ItemTypes.Event:
-                case Enums.ItemTypes.Consumable:
+                case Enums.ItemType.Event:
+                case Enums.ItemType.Consumable:
                     mContextMenu.AddChild(mUseItemContextItem);
                     mUseItemContextItem.SetText(Strings.ItemContextMenu.Use.ToString(item.Name));
                     break;
 
-                case Enums.ItemTypes.Bag:
+                case Enums.ItemType.Bag:
                     mContextMenu.AddChild(mUseItemContextItem);
                     mUseItemContextItem.SetText(Strings.ItemContextMenu.Open.ToString(item.Name));
                     break;
 
-                case Enums.ItemTypes.Equipment:
+                case Enums.ItemType.Equipment:
                     mContextMenu.AddChild(mUseItemContextItem);
                     // Show the correct equip/unequip prompts.
                     if (Globals.Me.MyEquipment.Contains(slot))
@@ -283,15 +285,15 @@ namespace Intersect.Client.Interface.Game.Inventory
             return !mInventoryWindow.IsHidden;
         }
 
-        public bool Hide()
+        public void Hide()
         {
             if (!Globals.CanCloseInventory)
             {
-                return false;
+                return;
             }
 
+            mContextMenu?.Close();
             mInventoryWindow.IsHidden = true;
-            return true;
         }
 
         public FloatRect RenderBounds()

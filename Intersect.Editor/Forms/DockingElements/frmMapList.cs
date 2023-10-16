@@ -19,7 +19,7 @@ namespace Intersect.Editor.Forms.DockingElements
         public FrmMapList()
         {
             InitializeComponent();
-            Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            Icon = Program.Icon;
 
             //Enable Editting of the list
             mapTreeList.EnableEditing(contextMenuStrip1);
@@ -47,7 +47,7 @@ namespace Intersect.Editor.Forms.DockingElements
 
         private void SaveMap()
         {
-            if (Globals.CurrentTool == (int) EditingTool.Selection)
+            if (Globals.CurrentTool == EditingTool.Selection)
             {
                 if (Globals.Dragging == true)
                 {

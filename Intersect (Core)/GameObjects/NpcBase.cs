@@ -14,23 +14,29 @@ namespace Intersect.GameObjects
 {
     public partial class NpcBase : DatabaseObject<NpcBase>, IFolderable
     {
-
-        [NotMapped] public ConditionLists AttackOnSightConditions = new ConditionLists();
-
-        [NotMapped] public List<Drop> Drops = new List<Drop>();
-
-        [NotMapped] public int[] MaxVital = new int[(int) Vitals.VitalCount];
-
-        [NotMapped] public ConditionLists PlayerCanAttackConditions = new ConditionLists();
-
-        [NotMapped] public ConditionLists PlayerFriendConditions = new ConditionLists();
-
-        [NotMapped] public int[] Stats = new int[(int) Enums.Stats.StatCount];
-
-        [NotMapped] public int[] VitalRegen = new int[(int) Vitals.VitalCount];
+        [NotMapped]
+        public ConditionLists AttackOnSightConditions = new ConditionLists();
 
         [NotMapped]
-        public List<StatusTypes> Immunities = new List<StatusTypes>();
+        public List<Drop> Drops = new List<Drop>();
+
+        [NotMapped]
+        public int[] MaxVital = new int[(int)Vital.VitalCount];
+
+        [NotMapped]
+        public ConditionLists PlayerCanAttackConditions = new ConditionLists();
+
+        [NotMapped]
+        public ConditionLists PlayerFriendConditions = new ConditionLists();
+
+        [NotMapped]
+        public int[] Stats = new int[(int)Enums.Stat.StatCount];
+
+        [NotMapped]
+        public int[] VitalRegen = new int[(int)Vital.VitalCount];
+
+        [NotMapped]
+        public List<SpellEffect> Immunities = new List<SpellEffect>();
 
         [JsonIgnore]
         [Column("Immunities")]
@@ -39,7 +45,7 @@ namespace Intersect.GameObjects
             get => JsonConvert.SerializeObject(Immunities);
             set
             {
-                Immunities = JsonConvert.DeserializeObject<List<StatusTypes>>(value ?? "") ?? new List<StatusTypes>();
+                Immunities = JsonConvert.DeserializeObject<List<SpellEffect>>(value ?? "") ?? new List<SpellEffect>();
             }
         }
 
@@ -178,8 +184,8 @@ namespace Intersect.GameObjects
         [JsonIgnore]
         public string JsonMaxVital
         {
-            get => DatabaseUtils.SaveIntArray(MaxVital, (int) Vitals.VitalCount);
-            set => DatabaseUtils.LoadIntArray(ref MaxVital, value, (int) Vitals.VitalCount);
+            get => DatabaseUtils.SaveIntArray(MaxVital, (int) Vital.VitalCount);
+            set => DatabaseUtils.LoadIntArray(ref MaxVital, value, (int) Vital.VitalCount);
         }
 
         //NPC vs NPC Combat
@@ -231,8 +237,8 @@ namespace Intersect.GameObjects
         [JsonIgnore]
         public string JsonStat
         {
-            get => DatabaseUtils.SaveIntArray(Stats, (int) Enums.Stats.StatCount);
-            set => DatabaseUtils.LoadIntArray(ref Stats, value, (int) Enums.Stats.StatCount);
+            get => DatabaseUtils.SaveIntArray(Stats, (int) Enums.Stat.StatCount);
+            set => DatabaseUtils.LoadIntArray(ref Stats, value, (int) Enums.Stat.StatCount);
         }
 
         //Vital Regen %
@@ -240,8 +246,8 @@ namespace Intersect.GameObjects
         [Column("VitalRegen")]
         public string RegenJson
         {
-            get => DatabaseUtils.SaveIntArray(VitalRegen, (int) Vitals.VitalCount);
-            set => VitalRegen = DatabaseUtils.LoadIntArray(value, (int) Vitals.VitalCount);
+            get => DatabaseUtils.SaveIntArray(VitalRegen, (int) Vital.VitalCount);
+            set => VitalRegen = DatabaseUtils.LoadIntArray(value, (int) Vital.VitalCount);
         }
 
         /// <inheritdoc />
@@ -259,7 +265,5 @@ namespace Intersect.GameObjects
 
             return SpellBase.Get(spellId);
         }
-
     }
-
 }

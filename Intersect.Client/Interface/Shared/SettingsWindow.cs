@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Intersect.Client.Core;
 using Intersect.Client.Core.Controls;
 using Intersect.Client.Framework.File_Management;
@@ -12,9 +13,9 @@ using Intersect.Client.General;
 using Intersect.Client.Interface.Game;
 using Intersect.Client.Interface.Menu;
 using Intersect.Client.Localization;
-using Intersect.Logging;
 using Intersect.Utilities;
 using static Intersect.Client.Framework.File_Management.GameContentManager;
+using MathHelper = Intersect.Client.Utilities.MathHelper;
 
 namespace Intersect.Client.Interface.Shared
 {
@@ -57,6 +58,8 @@ namespace Intersect.Client.Interface.Shared
 
         private readonly LabeledCheckBox mAutoCloseWindowsCheckbox;
 
+        private readonly LabeledCheckBox mAutoToggleChatLogCheckbox;
+
         private readonly LabeledCheckBox mShowExperienceAsPercentageCheckbox;
 
         private readonly LabeledCheckBox mShowHealthAsPercentageCheckbox;
@@ -78,6 +81,20 @@ namespace Intersect.Client.Interface.Shared
 
         private readonly LabeledCheckBox mPlayerOverheadInfoCheckbox;
 
+        private readonly LabeledCheckBox mFriendOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mGuildMemberOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mMyOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mNpcOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mPartyMemberOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mPlayerOverheadHpBarCheckbox;
+
+        private readonly LabeledCheckBox mTypewriterCheckbox;
+
         // Game Settings - Targeting.
         private readonly ScrollControl mTargetingSettings;
 
@@ -91,6 +108,10 @@ namespace Intersect.Client.Interface.Shared
         private MenuItem mCustomResolutionMenuItem;
 
         private readonly ComboBox mFpsList;
+
+        private readonly LabeledHorizontalSlider _worldScale;
+
+        private readonly LabeledHorizontalSlider _uiScale;
 
         private readonly LabeledCheckBox mFullscreenCheckbox;
 
@@ -182,7 +203,11 @@ namespace Intersect.Client.Interface.Shared
             mAutoCloseWindowsCheckbox = new LabeledCheckBox(mInterfaceSettings, "AutoCloseWindowsCheckbox");
             mAutoCloseWindowsCheckbox.Text = Strings.Settings.AutoCloseWindows;
 
-            // Game Settings - Interface: Show EXP/HP/MP to Percentage.
+            // Game Settings - Interface: Auto-toggle chat log visibility.
+            mAutoToggleChatLogCheckbox = new LabeledCheckBox(mInterfaceSettings, "AutoToggleChatLogCheckbox");
+            mAutoToggleChatLogCheckbox.Text = Strings.Settings.AutoToggleChatLog;
+
+            // Game Settings - Interface: Show EXP/HP/MP as Percentage.
             mShowExperienceAsPercentageCheckbox =
                 new LabeledCheckBox(mInterfaceSettings, "ShowExperienceAsPercentageCheckbox");
             mShowExperienceAsPercentageCheckbox.Text = Strings.Settings.ShowExperienceAsPercentage;
@@ -223,6 +248,36 @@ namespace Intersect.Client.Interface.Shared
                 new LabeledCheckBox(mInformationSettings, "PlayerOverheadInfoCheckbox");
             mPlayerOverheadInfoCheckbox.Text = Strings.Settings.ShowPlayerOverheadInformation;
 
+            // Game Settings - Information: friends overhead hp bar.
+            mFriendOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "FriendOverheadHpBarCheckbox");
+            mFriendOverheadHpBarCheckbox.Text = Strings.Settings.ShowFriendOverheadHpBar;
+
+            // Game Settings - Information: guild members overhead hp bar.
+            mGuildMemberOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "GuildMemberOverheadHpBarCheckbox");
+            mGuildMemberOverheadHpBarCheckbox.Text = Strings.Settings.ShowGuildOverheadHpBar;
+
+            // Game Settings - Information: my overhead hp bar.
+            mMyOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "MyOverheadHpBarCheckbox");
+            mMyOverheadHpBarCheckbox.Text = Strings.Settings.ShowMyOverheadHpBar;
+
+            // Game Settings - Information: NPC overhead hp bar.
+            mNpcOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "NpcOverheadHpBarCheckbox");
+            mNpcOverheadHpBarCheckbox.Text = Strings.Settings.ShowNpcOverheadHpBar;
+
+            // Game Settings - Information: party members overhead hp bar.
+            mPartyMemberOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "PartyMemberOverheadHpBarCheckbox");
+            mPartyMemberOverheadHpBarCheckbox.Text = Strings.Settings.ShowPartyOverheadHpBar;
+
+            // Game Settings - Information: players overhead hp bar.
+            mPlayerOverheadHpBarCheckbox =
+                new LabeledCheckBox(mInformationSettings, "PlayerOverheadHpBarCheckbox");
+            mPlayerOverheadHpBarCheckbox.Text = Strings.Settings.ShowPlayerOverheadHpBar;
+
             // Game Settings - Targeting.
             mTargetingSettings = new ScrollControl(mGameSettingsContainer, "TargetingSettings");
             mTargetingSettings.EnableScroll(false, false);
@@ -234,6 +289,10 @@ namespace Intersect.Client.Interface.Shared
             // Game Settings - Targeting: Auto-turn to Target.
             mAutoTurnToTarget = new LabeledCheckBox(mTargetingSettings, "AutoTurnToTargetCheckbox");
             mAutoTurnToTarget.Text = Strings.Settings.AutoTurnToTarget;
+
+            // Game Settings - Typewriter Text
+            mTypewriterCheckbox = new LabeledCheckBox(mInterfaceSettings, "TypewriterCheckbox");
+            mTypewriterCheckbox.Text = Strings.Settings.TypewriterText;
 
             #endregion
 
@@ -266,13 +325,36 @@ namespace Intersect.Client.Interface.Shared
                 }
             );
 
+            Globals.Database.WorldZoom = MathHelper.Clamp(Globals.Database.WorldZoom, 1, 4);
+
+            var worldScaleNotches = new double[] { 1, 2, 4 }.Select(n => n * Graphics.BaseWorldScale).ToArray();
+            _worldScale = new LabeledHorizontalSlider(mVideoSettingsContainer, "WorldScale")
+            {
+                Label = Strings.Settings.WorldScale,
+                Min = worldScaleNotches.Min(),
+                Max = worldScaleNotches.Max(),
+                Notches = worldScaleNotches,
+                SnapToNotches = false,
+                Value = Globals.Database.WorldZoom,
+            };
+
+            // _uiScale = new LabeledHorizontalSlider(mVideoSettingsContainer, "UIScale")
+            // {
+            //     Label = Strings.Settings.UIScale,
+            //     Min = 0.5f,
+            //     Max = 4f,
+            //     Notches = new double[] { 0.5, 1, 2, 4 },
+            //     SnapToNotches = true,
+            //     Value = 1f,
+            // };
+
             // Video Settings - FPS Background.
             var fpsBackground = new ImagePanel(mVideoSettingsContainer, "FPSPanel");
 
             // Video Settings - FPS Label.
             var fpsLabel = new Label(fpsBackground, "FPSLabel");
             fpsLabel.SetText(Strings.Settings.TargetFps);
-
+            
             // Video Settings - FPS List.
             mFpsList = new ComboBox(fpsBackground, "FPSCombobox");
             mFpsList.AddItem(Strings.Settings.Vsync);
@@ -434,7 +516,7 @@ namespace Intersect.Client.Interface.Shared
             mInterfaceSettings.Hide();
             mInformationSettings.Hide();
             mTargetingSettings.Show();
-            mAutoTurnToTarget.IsDisabled = !Options.Instance.PlayerOpts.EnableAutoTurnToTarget;
+            mAutoTurnToTarget.IsDisabled = !(Options.Instance?.PlayerOpts?.EnableAutoTurnToTarget ?? false);
         }
 
         private void VideoSettingsTab_Clicked(Base sender, ClickedEventArgs arguments)
@@ -541,6 +623,17 @@ namespace Intersect.Client.Interface.Shared
             mSettingsApplyBtn.Show();
             mSettingsCancelBtn.Show();
             mKeybindingRestoreBtn.Hide();
+
+            var worldScaleNotches = new double[] { 1, 2, 4 }.Select(n => n * Graphics.BaseWorldScale).ToArray();
+
+            Globals.Database.WorldZoom = (float)MathHelper.Clamp(
+                Globals.Database.WorldZoom,
+                worldScaleNotches.Min(),
+                worldScaleNotches.Max()
+            );
+            _worldScale.Min = worldScaleNotches.Min();
+            _worldScale.Max = worldScaleNotches.Max();
+            _worldScale.Value = Globals.Database.WorldZoom;
         }
 
         private readonly HashSet<Keys> _keysDown = new HashSet<Keys>();
@@ -606,9 +699,9 @@ namespace Intersect.Client.Interface.Shared
         // Methods.
         public void Update()
         {
-            if (mSettingsPanel.IsVisible &&
+            if (IsVisible &&
                 mKeybindingEditBtn != null &&
-                mKeybindingListeningTimer < Timing.Global.Milliseconds)
+                mKeybindingListeningTimer < Timing.Global.MillisecondsUtc)
             {
                 OnKeyUp(Keys.None, Keys.None);
             }
@@ -624,6 +717,7 @@ namespace Intersect.Client.Interface.Shared
 
             // Game Settings.
             mAutoCloseWindowsCheckbox.IsChecked = Globals.Database.HideOthersOnWindowOpen;
+            mAutoToggleChatLogCheckbox.IsChecked = Globals.Database.AutoToggleChatLog;
             mShowHealthAsPercentageCheckbox.IsChecked = Globals.Database.ShowHealthAsPercentage;
             mShowManaAsPercentageCheckbox.IsChecked = Globals.Database.ShowManaAsPercentage;
             mShowExperienceAsPercentageCheckbox.IsChecked = Globals.Database.ShowExperienceAsPercentage;
@@ -633,12 +727,22 @@ namespace Intersect.Client.Interface.Shared
             mNpcOverheadInfoCheckbox.IsChecked = Globals.Database.NpcOverheadInfo;
             mPartyMemberOverheadInfoCheckbox.IsChecked = Globals.Database.PartyMemberOverheadInfo;
             mPlayerOverheadInfoCheckbox.IsChecked = Globals.Database.PlayerOverheadInfo;
+            mFriendOverheadHpBarCheckbox.IsChecked = Globals.Database.FriendOverheadHpBar;
+            mGuildMemberOverheadHpBarCheckbox.IsChecked = Globals.Database.GuildMemberOverheadHpBar;
+            mMyOverheadHpBarCheckbox.IsChecked = Globals.Database.MyOverheadHpBar;
+            mNpcOverheadHpBarCheckbox.IsChecked = Globals.Database.NpcOverheadHpBar;
+            mPartyMemberOverheadHpBarCheckbox.IsChecked = Globals.Database.PartyMemberOverheadHpBar;
+            mPlayerOverheadHpBarCheckbox.IsChecked = Globals.Database.PlayerOverheadHpBar;
             mStickyTarget.IsChecked = Globals.Database.StickyTarget;
             mAutoTurnToTarget.IsChecked = Globals.Database.AutoTurnToTarget;
+            mTypewriterCheckbox.IsChecked = Globals.Database.TypewriterBehavior == Enums.TypewriterBehavior.Word;
 
             // Video Settings.
             mFullscreenCheckbox.IsChecked = Globals.Database.FullScreen;
             mLightingEnabledCheckbox.IsChecked = Globals.Database.EnableLighting;
+
+            // _uiScale.Value = Globals.Database.UIScale;
+            _worldScale.Value = Globals.Database.WorldZoom;
 
             if (Graphics.Renderer.GetValidVideoModes().Count > 0)
             {
@@ -715,7 +819,7 @@ namespace Intersect.Client.Interface.Shared
             mReturnToMenu = returnToMenu;
         }
 
-        public bool IsVisible() => !mSettingsPanel.IsHidden;
+        public bool IsVisible => !mSettingsPanel.IsHidden;
 
         public void Hide()
         {
@@ -773,7 +877,7 @@ namespace Intersect.Client.Interface.Shared
                 mKeybindingEditControl = ((KeyValuePair<Control, int>)sender.UserData).Key;
                 mKeybindingEditBtn = sender;
                 Interface.GwenInput.HandleInput = false;
-                mKeybindingListeningTimer = Timing.Global.Milliseconds + 3000;
+                mKeybindingListeningTimer = Timing.Global.MillisecondsUtc + 3000;
             }
         }
 
@@ -797,6 +901,7 @@ namespace Intersect.Client.Interface.Shared
 
             // Game Settings.
             Globals.Database.HideOthersOnWindowOpen = mAutoCloseWindowsCheckbox.IsChecked;
+            Globals.Database.AutoToggleChatLog = mAutoToggleChatLogCheckbox.IsChecked;
             Globals.Database.ShowExperienceAsPercentage = mShowExperienceAsPercentageCheckbox.IsChecked;
             Globals.Database.ShowHealthAsPercentage = mShowHealthAsPercentageCheckbox.IsChecked;
             Globals.Database.ShowManaAsPercentage = mShowManaAsPercentageCheckbox.IsChecked;
@@ -806,10 +911,21 @@ namespace Intersect.Client.Interface.Shared
             Globals.Database.NpcOverheadInfo = mNpcOverheadInfoCheckbox.IsChecked;
             Globals.Database.PartyMemberOverheadInfo = mPartyMemberOverheadInfoCheckbox.IsChecked;
             Globals.Database.PlayerOverheadInfo = mPlayerOverheadInfoCheckbox.IsChecked;
+            Globals.Database.FriendOverheadHpBar = mFriendOverheadHpBarCheckbox.IsChecked;
+            Globals.Database.GuildMemberOverheadHpBar = mGuildMemberOverheadHpBarCheckbox.IsChecked;
+            Globals.Database.MyOverheadHpBar= mMyOverheadHpBarCheckbox.IsChecked;
+            Globals.Database.NpcOverheadHpBar= mNpcOverheadHpBarCheckbox.IsChecked;
+            Globals.Database.PartyMemberOverheadHpBar = mPartyMemberOverheadHpBarCheckbox.IsChecked;
+            Globals.Database.PlayerOverheadHpBar = mPlayerOverheadHpBarCheckbox.IsChecked;
             Globals.Database.StickyTarget = mStickyTarget.IsChecked;
             Globals.Database.AutoTurnToTarget = mAutoTurnToTarget.IsChecked;
+            Globals.Database.TypewriterBehavior = mTypewriterCheckbox.IsChecked ? Enums.TypewriterBehavior.Word : Enums.TypewriterBehavior.Off;
 
             // Video Settings.
+
+            // Globals.Database.UIScale = (float)_uiScale.Value;
+            Globals.Database.WorldZoom = (float)_worldScale.Value;
+
             var resolution = mResolutionList.SelectedItem;
             var validVideoModes = Graphics.Renderer.GetValidVideoModes();
             var targetResolution = validVideoModes?.FindIndex(videoMode =>

@@ -150,6 +150,18 @@ namespace Intersect.Server.Entities
 
         #region Loading
 
+        public void LoadRelationships(PlayerContext playerContext)
+        {
+            var entityEntry = playerContext.Players.Attach(this);
+            entityEntry.Collection(p => p.Bank).Load();
+            entityEntry.Collection(p => p.Hotbar).Load();
+            entityEntry.Collection(p => p.Items).Load();
+            entityEntry.Collection(p => p.Quests).Load();
+            entityEntry.Collection(p => p.Spells).Load();
+            entityEntry.Collection(p => p.Variables).Load();
+            Validate(this);
+        }
+
         public static Player Load(Guid playerId)
         {
             var player = Find(playerId);
@@ -394,6 +406,7 @@ namespace Intersect.Server.Entities
                     .Include(p => p.Variables)
                     .Include(p => p.Items)
                     .Include(p => p.Spells)
+                    .AsSplitQuery()
             ) ??
             throw new InvalidOperationException();
 
@@ -410,6 +423,7 @@ namespace Intersect.Server.Entities
                     .Include(p => p.Variables)
                     .Include(p => p.Items)
                     .Include(p => p.Spells)
+                    .AsSplitQuery()
             ) ??
             throw new InvalidOperationException();
 
@@ -422,6 +436,7 @@ namespace Intersect.Server.Entities
                     .Include(p => p.Variables)
                     .Include(p => p.Items)
                     .Include(p => p.Spells)
+                    .AsSplitQuery()
                     .FirstOrDefault()
             ) ??
             throw new InvalidOperationException();
@@ -436,6 +451,7 @@ namespace Intersect.Server.Entities
                     .Include(p => p.Variables)
                     .Include(p => p.Items)
                     .Include(p => p.Spells)
+                    .AsSplitQuery()
                     .FirstOrDefault()
             ) ??
             throw new InvalidOperationException();
@@ -443,6 +459,21 @@ namespace Intersect.Server.Entities
         private static readonly Func<PlayerContext, string, bool> AnyPlayerByName =
             EF.CompileQuery(
                 (PlayerContext context, string name) => context.Players.Where(p => p.Name == name).Any());
+
+        internal static readonly Func<PlayerContext, Guid, Player> QueryPlayerByGuidWithLoading =
+            EF.CompileQuery(
+                // ReSharper disable once SpecifyStringComparison
+                (PlayerContext context, Guid playerId) => context.Players.Where(p => p.Id == playerId)
+                    .Include(c => c.Bank)
+                    .Include(c => c.Hotbar)
+                    .Include(c => c.Items)
+                    .Include(c => c.Quests)
+                    .Include(c => c.Spells)
+                    .Include(c => c.Variables)
+                    .AsSplitQuery()
+                    .FirstOrDefault()
+            ) ??
+            throw new InvalidOperationException();
 
         #endregion
 

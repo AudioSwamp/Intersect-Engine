@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Threading;
 
@@ -18,8 +19,6 @@ namespace Intersect.Network.Lidgren
 
     public sealed partial class LidgrenInterface : INetworkLayerInterface
     {
-
-        public delegate void HandleUnconnectedMessage(NetPeer peer, NetIncomingMessage message);
 
         private static readonly IConnection[] EmptyConnections = { };
 
@@ -132,7 +131,7 @@ namespace Intersect.Network.Lidgren
             );
         }
 
-        public HandleUnconnectedMessage OnUnconnectedMessage { get; set; }
+        public HandleConnectionEvent OnConnected { get; set; }
 
         public HandleConnectionEvent OnConnectionApproved { get; set; }
 
@@ -140,15 +139,25 @@ namespace Intersect.Network.Lidgren
 
         public HandleConnectionRequest OnConnectionRequested { get; set; }
 
+        public HandleConnectionEvent OnDisconnected { get; set; }
+
+        public HandlePacketAvailable OnPacketAvailable { get; set; }
+
+        public HandleUnconnectedMessage OnUnconnectedMessage { get; set; }
+
         private bool IsDisposing { get; set; }
 
         public bool IsDisposed { get; private set; }
 
-        public HandlePacketAvailable OnPacketAvailable { get; set; }
+        public bool SendUnconnectedPacket(IPEndPoint target, ReadOnlySpan<byte> data)
+        {
+            throw new NotImplementedException();
+        }
 
-        public HandleConnectionEvent OnConnected { get; set; }
-
-        public HandleConnectionEvent OnDisconnected { get; set; }
+        public bool SendUnconnectedPacket(IPEndPoint target, UnconnectedPacket packet)
+        {
+            throw new NotImplementedException();
+        }
 
         public void Start()
         {
@@ -223,6 +232,48 @@ namespace Intersect.Network.Lidgren
             }
 
             return mNetwork.FindConnection(guid);
+        }
+
+        event HandleConnectionEvent? INetworkLayerInterface.OnConnected
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandleConnectionEvent? INetworkLayerInterface.OnConnectionApproved
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandleConnectionEvent? INetworkLayerInterface.OnConnectionDenied
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandleConnectionRequest? INetworkLayerInterface.OnConnectionRequested
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandleConnectionEvent? INetworkLayerInterface.OnDisconnected
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandlePacketAvailable? INetworkLayerInterface.OnPacketAvailable
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
+        }
+
+        event HandleUnconnectedMessage? INetworkLayerInterface.OnUnconnectedMessage
+        {
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
         }
 
         public bool TryGetInboundBuffer(out IBuffer buffer, out IConnection connection)
@@ -594,35 +645,15 @@ namespace Intersect.Network.Lidgren
                             NetworkStatus networkStatus;
                             try
                             {
-                                switch (reason)
+                                networkStatus = reason switch
                                 {
                                     //Lidgren won't accept a connection with a bad version and sends this message back so we need to manually handle it
-                                    case "Wrong application identifier!":
-                                        networkStatus = NetworkStatus.VersionMismatch;
-
-                                        break;
-
-                                    case "Connection timed out":
-                                        networkStatus = NetworkStatus.Quitting;
-
-                                        break;
-
-                                    case "Failed to establish connection - no response from remote host":
-                                        networkStatus = NetworkStatus.Offline;
-
-                                        break;
-
-                                    case "closing":
-                                        networkStatus = NetworkStatus.Offline;
-                                        break;
-
-                                    default:
-                                        networkStatus = (NetworkStatus) Enum.Parse(
-                                            typeof(NetworkStatus), reason ?? "<null>", true
-                                        );
-
-                                        break;
-                                }
+                                    "Wrong application identifier!" => NetworkStatus.VersionMismatch,
+                                    "Connection timed out" => NetworkStatus.Quitting,
+                                    "Failed to establish connection - no response from remote host" => NetworkStatus.Offline,
+                                    "closing" => NetworkStatus.Offline,
+                                    _ => (NetworkStatus)Enum.Parse(typeof(NetworkStatus), reason ?? "<null>", true)
+                                };
                             }
                             catch (Exception exception)
                             {
@@ -640,7 +671,7 @@ namespace Intersect.Network.Lidgren
                                 case NetworkStatus.Failed:
                                     disconnectHandler = OnConnectionDenied;
                                     disconnectHandlerName = nameof(OnConnectionDenied);
-
+                                    Log.Diagnostic($"Disconnecting because of {networkStatus} ({reason})");
                                     break;
 
                                 case NetworkStatus.Connecting:
@@ -693,7 +724,8 @@ namespace Intersect.Network.Lidgren
                     break;
 
                 case NetIncomingMessageType.UnconnectedData:
-                    OnUnconnectedMessage?.Invoke(mPeer, message);
+                    UnconnectedMessageSender sender = new(this, message.SenderEndPoint, mPeer);
+                    OnUnconnectedMessage?.Invoke(sender, new LidgrenBuffer(message));
                     Log.Diagnostic($"Net Incoming Message: {message.MessageType}: {message}");
 
                     break;
@@ -727,7 +759,7 @@ namespace Intersect.Network.Lidgren
                         Log.Debug($"NCPing={(long)Math.Ceiling(senderConnection.AverageRoundtripTime * 1000)}");
 
                         // Check if we've got more connections than we're allowed to handle!
-                        if (mNetwork.ConnectionCount >= Options.MaxConnections)
+                        if (mNetwork.ConnectionCount >= Options.Instance.MaxClientConnections)
                         {
                             Log.Info($"Connection limit reached, denying connection [{lidgrenIdHex}].");
                                 senderConnection?.Deny(NetworkStatus.ServerFull.ToString());

@@ -3,14 +3,13 @@ using System.IO;
 
 using Intersect.Config;
 using Intersect.Config.Guilds;
+using Intersect.Logging;
 using Newtonsoft.Json;
 
 namespace Intersect
 {
-
     public partial class Options
     {
-
         //Caching Json
         private static string optionsCompressed = "";
 
@@ -18,7 +17,8 @@ namespace Intersect
         protected bool _adminOnly = false;
 
         //Constantly Animated Sprites
-        [JsonProperty("AnimatedSprites")] protected List<string> _animatedSprites = new List<string>();
+        [JsonProperty("AnimatedSprites")]
+        protected List<string> _animatedSprites = new List<string>();
 
         [JsonProperty("BlockClientRegistrations", Order = -2)]
         protected bool _blockClientRegistrations = false;
@@ -29,42 +29,57 @@ namespace Intersect
         [JsonProperty("OpenPortChecker", Order = 0)]
         protected bool _portChecker = true;
 
+        [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+        public string? PortCheckerUrl { get; set; }
+
         [JsonProperty("MaxClientConnections")]
-        protected int _maxConnections = 100;
+        public int MaxClientConnections { get; set; }= 100;
 
         [JsonProperty("MaximumLoggedinUsers")]
         protected int _maxUsers = 50;
 
-        [JsonProperty("UPnP", Order = -1)] protected bool _upnp = true;
+        [JsonProperty("UPnP", Order = -1)]
+        protected bool _upnp = true;
 
-        [JsonProperty("Chat")] public ChatOptions ChatOpts = new ChatOptions();
+        [JsonProperty("Chat")]
+        public ChatOptions ChatOpts = new ChatOptions();
 
-        [JsonProperty("Combat")] public CombatOptions CombatOpts = new CombatOptions();
+        [JsonProperty("Combat")]
+        public CombatOptions CombatOpts = new CombatOptions();
 
-        [JsonProperty("Equipment")] public EquipmentOptions EquipmentOpts = new EquipmentOptions();
+        [JsonProperty("Equipment")]
+        public EquipmentOptions EquipmentOpts = new EquipmentOptions();
 
         [JsonProperty("EventWatchdogKillThreshold")]
         public int EventKillTheshhold = 5000;
 
+        [JsonProperty("Map")]
+        public MapOptions MapOpts = new MapOptions();
+
         public DatabaseOptions GameDatabase = new DatabaseOptions();
 
-        [JsonProperty("Map")] public MapOptions MapOpts = new MapOptions();
+        public DatabaseOptions LoggingDatabase = new DatabaseOptions();
 
         public DatabaseOptions PlayerDatabase = new DatabaseOptions();
 
-        [JsonProperty("Player")] public PlayerOptions PlayerOpts = new PlayerOptions();
+        [JsonProperty("Player")]
+        public PlayerOptions PlayerOpts = new PlayerOptions();
 
-        [JsonProperty("Party")] public PartyOptions PartyOpts = new PartyOptions();
+        [JsonProperty("Party")]
+        public PartyOptions PartyOpts = new PartyOptions();
 
-        [JsonProperty("Security")] public SecurityOptions SecurityOpts = new SecurityOptions();
+        [JsonProperty("Security")]
+        public SecurityOptions SecurityOpts = new SecurityOptions();
 
-        [JsonProperty("Loot")] public LootOptions LootOpts = new LootOptions();
+        [JsonProperty("Loot")]
+        public LootOptions LootOpts = new LootOptions();
 
         public ProcessingOptions Processing = new ProcessingOptions();
 
         public SpriteOptions Sprites = new SpriteOptions();
 
-        [JsonProperty("Npc")] public NpcOptions NpcOpts = new NpcOptions();
+        [JsonProperty("Npc")]
+        public NpcOptions NpcOpts = new NpcOptions();
 
         public MetricsOptions Metrics = new MetricsOptions();
 
@@ -77,7 +92,7 @@ namespace Intersect
         public GuildOptions Guild = new GuildOptions();
 
         public LoggingOptions Logging = new LoggingOptions();
-        
+
         public BankOptions Bank = new BankOptions();
 
         public InstancingOptions Instancing = new InstancingOptions();
@@ -90,12 +105,11 @@ namespace Intersect
         public bool SendingToClient { get; set; } = true;
 
         //Public Getters
-        public static ushort ServerPort { get => Instance._serverPort; set => Instance._serverPort = value; }
-
-        /// <summary>
-        /// Defines the maximum amount of network connections our server is allowed to handle.
-        /// </summary>
-        public static int MaxConnections => Instance._maxConnections;
+        public static ushort ServerPort
+        {
+            get => Instance._serverPort;
+            set => Instance._serverPort = value;
+        }
 
         /// <summary>
         /// Defines the maximum amount of logged in users our server is allowed to handle.
@@ -131,7 +145,7 @@ namespace Intersect
         public static List<string> AnimatedSprites => Instance._animatedSprites;
 
         public static int RegenTime => Instance.CombatOpts.RegenTime;
-        
+
         public static int CombatTime => Instance.CombatOpts.CombatTime;
 
         public static int MinAttackRate => Instance.CombatOpts.MinAttackRate;
@@ -146,9 +160,9 @@ namespace Intersect
 
         public static bool ZDimensionVisible => Instance.MapOpts.ZDimensionVisible;
 
-        public static int MapWidth => Instance?.MapOpts?.Width ?? 32;
+        public static int MapWidth => Instance?.MapOpts?.MapWidth ?? 32;
 
-        public static int MapHeight => Instance?.MapOpts?.Height ?? 26;
+        public static int MapHeight => Instance?.MapOpts?.MapHeight ?? 26;
 
         public static int TileWidth => Instance.MapOpts.TileWidth;
 
@@ -176,24 +190,16 @@ namespace Intersect
 
         public static int PasswordResetExpirationMinutes => Instance._passResetExpirationMin;
 
-        public static bool AdminOnly { get => Instance._adminOnly; set => Instance._adminOnly = value; }
+        public static bool AdminOnly
+        {
+            get => Instance._adminOnly;
+            set => Instance._adminOnly = value;
+        }
 
         public static bool BlockClientRegistrations
         {
             get => Instance._blockClientRegistrations;
             set => Instance._blockClientRegistrations = value;
-        }
-
-        public static DatabaseOptions PlayerDb
-        {
-            get => Instance.PlayerDatabase;
-            set => Instance.PlayerDatabase = value;
-        }
-
-        public static DatabaseOptions GameDb
-        {
-            get => Instance.GameDatabase;
-            set => Instance.GameDatabase = value;
         }
 
         public static PlayerOptions Player => Instance.PlayerOpts;
@@ -239,12 +245,15 @@ namespace Intersect
 
             if (File.Exists("resources/config.json"))
             {
-                Instance = JsonConvert.DeserializeObject<Options>(File.ReadAllText("resources/config.json"));
+                Instance = JsonConvert.DeserializeObject<Options>(
+                    File.ReadAllText("resources/config.json")
+                );
             }
 
             Instance.SmtpValid = Instance.SmtpSettings.IsValid();
             Instance.SendingToClient = false;
             Instance.FixAnimatedSprites();
+            Log.Default.Configuration.LogLevel = Instance.Logging.Level;
             File.WriteAllText("resources/config.json", JsonConvert.SerializeObject(Instance, Formatting.Indented));
             Instance.SendingToClient = true;
             optionsCompressed = JsonConvert.SerializeObject(Instance);
@@ -266,13 +275,25 @@ namespace Intersect
         }
 
         // ReSharper disable once UnusedMember.Global
-        public bool ShouldSerializePlayerDatabase()
+        public bool ShouldSerializeGameDatabase()
         {
             return !SendingToClient;
         }
 
         // ReSharper disable once UnusedMember.Global
-        public bool ShouldSerializeGameDatabase()
+        public bool ShouldSerializeLoggingDatabase()
+        {
+            return !SendingToClient;
+        }
+
+        // ReSharper disable once UnusedMember.Global
+        public bool ShouldSerializeLogging()
+        {
+            return !SendingToClient;
+        }
+
+        // ReSharper disable once UnusedMember.Global
+        public bool ShouldSerializePlayerDatabase()
         {
             return !SendingToClient;
         }
@@ -305,7 +326,5 @@ namespace Intersect
         public const int DEFAULT_SERVER_PORT = 5400;
 
         #endregion
-
     }
-
 }

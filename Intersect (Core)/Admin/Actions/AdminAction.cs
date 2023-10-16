@@ -1,4 +1,3 @@
-using Intersect.Enums;
 using MessagePack;
 
 namespace Intersect.Admin.Actions
@@ -21,8 +20,6 @@ namespace Intersect.Admin.Actions
     public abstract partial class AdminAction
     {
         [Key(0)]
-        public abstract AdminActions Action { get; }
-
+        public abstract Enums.AdminAction Action { get; }
     }
-
 }

@@ -8,20 +8,24 @@
     <Product>Intersect Game Engine</Product>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/AscensionGameDev/Intersect-Engine</RepositoryUrl>
-    <Version>0.7.1.0</Version>
+    <Version>0.7.2.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Label="Assembly Properties">
+    <ApplicationIcon>$(IntersectRepoPath)\assets\intersect-logo-qu.ico</ApplicationIcon>
     <AssemblyVersion>$(Version)</AssemblyVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
     <FileVersion>$(Version)</FileVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <ApplicationIcon>$(IntersectRepoPath)\assets\intersect-logo-qu.ico</ApplicationIcon>
+    <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="$(IntersectRepoPath)\assets\intersect-logo-qu.png" Pack="true" PackagePath="\" />
+    <None Include="$(IntersectRepoPath)\assets\intersect-logo-qu.png" Pack="true" PackagePath="\"/>
+    <EmbeddedResource Include="$(IntersectRepoPath)\assets\intersect-logo-qu.ico" Pack="true" PackagePath="\"/>
   </ItemGroup>
 </Project>

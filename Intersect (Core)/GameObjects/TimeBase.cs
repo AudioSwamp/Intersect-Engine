@@ -5,21 +5,20 @@ using Newtonsoft.Json;
 
 namespace Intersect.GameObjects
 {
-
     public partial class TimeBase
     {
-
         private static TimeBase sTimeBase = new TimeBase();
 
-        [NotMapped] public Color[] DaylightHues;
+        [NotMapped]
+        public Color[] DaylightHues;
 
         public TimeBase()
         {
             ResetColors();
         }
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; protected set; }
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public Guid Id { get; protected set; } = Guid.NewGuid();
 
         [JsonIgnore]
         [Column("DaylightHues")]
@@ -134,7 +133,5 @@ namespace Intersect.GameObjects
         {
             return sTimeBase;
         }
-
     }
-
 }

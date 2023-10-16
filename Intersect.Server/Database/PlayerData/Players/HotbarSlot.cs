@@ -1,5 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 using Intersect.Enums;
 using Intersect.Server.Entities;
@@ -25,9 +24,9 @@ namespace Intersect.Server.Database.PlayerData.Players
             Slot = slot;
         }
 
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         [JsonIgnore]
-        public Guid Id { get; private set; }
+        public Guid Id { get; private set; } = Guid.NewGuid();
 
         public Guid ItemOrSpellId { get; set; } = Guid.Empty;
 
@@ -37,12 +36,12 @@ namespace Intersect.Server.Database.PlayerData.Players
         [JsonIgnore]
         public string StatBuffsJson
         {
-            get => DatabaseUtils.SaveIntArray(PreferredStatBuffs, (int) Enums.Stats.StatCount);
-            set => PreferredStatBuffs = DatabaseUtils.LoadIntArray(value, (int) Enums.Stats.StatCount);
+            get => DatabaseUtils.SaveIntArray(PreferredStatBuffs, (int) Enums.Stat.StatCount);
+            set => PreferredStatBuffs = DatabaseUtils.LoadIntArray(value, (int) Enums.Stat.StatCount);
         }
 
         [NotMapped]
-        public int[] PreferredStatBuffs { get; set; } = new int[(int) Stats.StatCount];
+        public int[] PreferredStatBuffs { get; set; } = new int[(int) Stat.StatCount];
 
         [JsonIgnore]
         public Guid PlayerId { get; private set; }

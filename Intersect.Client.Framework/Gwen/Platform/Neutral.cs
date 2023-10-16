@@ -37,7 +37,7 @@ namespace Intersect.Client.Framework.Gwen.Platform
                 {
                     try
                     {
-                        if (GameClipboard.Instance == null || !GameClipboard.Instance.ContainsText())
+                        if (GameClipboard.Instance == null || GameClipboard.Instance.IsEmpty)
                         {
                             return;
                         }
@@ -51,7 +51,7 @@ namespace Intersect.Client.Framework.Gwen.Platform
                 }
             );
 
-            staThread.SetApartmentState(ApartmentState.STA);
+            // staThread.SetApartmentState(ApartmentState.STA);
             staThread.Start();
             staThread.Join();
 

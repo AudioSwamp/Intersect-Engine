@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-
+using Intersect.Config;
 using Intersect.Localization;
 using Intersect.Logging;
-
+using Intersect.Server.Networking.Helpers;
 using Newtonsoft.Json;
 
 namespace Intersect.Server.Localization
@@ -97,6 +97,9 @@ namespace Intersect.Server.Localization
                 @"Account registrations are currently blocked by the server.";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString emailfail = @"Failed to send your password reset email at this time. Please try again later.";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString UnknownError = @"An unknown error occurred while saving the user.";
         }
 
         public sealed partial class BagsNamespace : LocaleNamespace
@@ -516,9 +519,19 @@ namespace Intersect.Server.Localization
 
         public sealed partial class DatabaseNamespace : LocaleNamespace
         {
+            public readonly LocaleDictionary<DatabaseType, LocalizedString> DatabaseTypes = new(
+                new Dictionary<DatabaseType, LocalizedString>
+                {
+                    { DatabaseType.Sqlite, "SQLite" },
+                    { DatabaseType.MySql, "MySql" }
+                }
+            );
 
             [JsonProperty("default", NullValueHandling = NullValueHandling.Ignore)]
             public readonly LocalizedString Default = @"Default";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString MigratingAutomatically = @"The --migrate-automatically flag was passed to the server on startup and the user will not be prompted...";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public readonly LocalizedString noclasses = @"No classes found! - Creating a default class!";
@@ -934,89 +947,107 @@ namespace Intersect.Server.Localization
 
         public sealed partial class MigrationNamespace : LocaleNamespace
         {
-
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString alreadyusingengine =
+            public readonly LocalizedString AlreadyUsingProvider =
                 @"   Migration Error: {00} database is already using {01}!";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString cancel = @"   Press any other key to cancel migration.";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString Cancel = @"   Press any other key to cancel migration.";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString currentlymysql = @"currently using MySql";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString currentlysqlite = @"currently using Sqlite";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString entermysqlinfo = @"Please enter your Mysql connection parameters:";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString gamedb = @"Game";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString migratetomysql = @"   [2] Mysql";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString migratetosqlite = @"   [1] Sqlite";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString migrationcancelled = @"Migration Cancelled";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString migrationcomplete = @"Migration complete! Press enter to exit.";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysql = @"Mysql";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqlconnecting = @"Please wait, attempting to connect to database...";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqlconnectionerror = @"Error opening db connection! Error: {00}";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqldatabase = @"Database: ";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqlhost = @"Host: ";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString CurrentlyUsing = @"currently using {00}";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString mysqlnotempty =
+            public readonly LocalizedString DefaultHost = @"localhost";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString DefaultPortMySql = @"3306";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString DefaultUsername = @"root";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString DefaultDatabase = "intersect_{00}_{01}";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString EnterConnectionStringParameters = @"Please enter your connection string parameters:";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString GameDatabaseName = @"Game";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString LoggingDatabaseName = @"Logging";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString OptionMySql = @"   [2] Mysql";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString OptionSqlite = @"   [1] Sqlite";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString MigratingDbSet = @"Migrating entities in {00}...";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString MigrationCanceled = @"Migration Cancelled";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString MigrationComplete = @"Migration complete! Press enter to exit.";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString MySqlConnecting = @"Please wait, attempting to connect to database...";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString MySqlConnectionError = @"Error opening db connection! Error: {00}";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString MySqlNotEmpty =
                 @"Database must be empty before migration! Please delete any tables before proceeding! Migration Cancelled.";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqlpass = @"Password: ";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqlport = @"Port: ";
-
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString mysqltryagain =
+            public readonly LocalizedString MySqlTryAgain =
                 @"Would you like to try entering your connection info again? (y/n)  ";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString mysqluser = @"User: ";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString ConfirmCharacter = @"y";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString overwritecharacter = @"y";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PlayerDatabaseName = @"Player";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString playerdb = @"Player";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PromptDatabase = @"Database ({00}): ";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectdb = @"Which database would you like to migrate:";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PromptHost = @"Host ({00}): ";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectdbengine = @"Select which engine to migrate the {00} database to:";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PromptPassword = @"Password (empty): ";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PromptPort = @"Port ({00}): ";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString PromptUsername = @"User ({00}): ";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectContext = @"Which database would you like to migrate:";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectProvider = @"Select which engine to migrate the {00} database to:";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString selectgamedb =
+            public readonly LocalizedString SqliteRecommended = "Sqlite strongly recommended!";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString SelectDatabase = @"    [{00}] {01} (currently using {02}) {03}";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString SelectDatabaseType = @"    [{00}] {01}";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString SelectGameDatabaseProvider =
                 "   [1] Game Database ({00})  -  Sqlite Strongly Recommended!";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectgamedbkey = @"1";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectGameDatabaseKey = @"1";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectmysqlkey = @"2";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectMySqlKey = @"2";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectplayerdb = "   [2] Player Database ({00})";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectPlayerDatabaseProvider = "   [2] Player Database ({00})";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectplayerdbkey = @"2";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectPlayerDatabaseKey = @"2";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString selectsqlitekey = @"1";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString SelectSqliteKey = @"1";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString sqlite = @"Sqlite";
-
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString sqlitealreadyexists = @"{00} already exists, overwrite? (y/n)  ";
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString DatabaseFileAlreadyExists = @"{00} already exists, overwrite? (y/n)  ";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString startingmigration =
+            public readonly LocalizedString StartingMigration =
                 @"Starting migration, please wait! (This could take several minutes depending on the size of your game)";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-            public readonly LocalizedString stoppingserver =
+            public readonly LocalizedString StoppingServer =
                 @"Please wait, stopping server, and saving current database...";
 
-            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString tryagaincharacter = @"y";
-
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public readonly LocalizedString TryAgainCharacter = @"y";
         }
 
         public sealed partial class NetDebugNamespace : LocaleNamespace
@@ -1254,6 +1285,52 @@ namespace Intersect.Server.Localization
             public readonly LocalizedString screwed =
                 @"   3. If on a college campus, or within a business network you likely do not have permission to open ports or host games in which case you should explore external hosting options!";
 
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocaleDictionary<PortCheckResult, LocalizedString> PortCheckerResults = new LocaleDictionary<PortCheckResult, LocalizedString>(
+                new Dictionary<PortCheckResult, LocalizedString>
+                {
+                    { PortCheckResult.Unknown, "This server is possibly inaccessible from the outside world, try to connect with the client to verify." },
+                    { PortCheckResult.Open, "This server is accessible from the outside world, properly configured clients can connect." },
+                    { PortCheckResult.PossiblyOpen, "This server is possible accessible from the outside world, but the AscensionGameDev port checker server gave an inconclusive response." },
+                    { PortCheckResult.IntersectResponseNoPlayerCount, "This server is not reporting a player count and may not be accessible, please see the Port Forwarding documentation for more information: {0}" },
+                    { PortCheckResult.IntersectResponseInvalidPlayerCount, "This server reporting an invalid player count and may not be accessible, please see the Port Forwarding documentation for more information: {0}" },
+                    { PortCheckResult.InvalidPortCheckerRequest, "The AscensionGameDev port checker server is down and this server may or may not be accessible from the outside world, try to connect with the client to verify" },
+                    { PortCheckResult.PortCheckerServerError, "The AscensionGameDev port checker server encountered an error and this server may or may not be accessible from the outside world, try to connect with the client to verify." },
+                    { PortCheckResult.PortCheckerServerDown, "The AscensionGameDev port checker server is down and this server may or may not be accessible from the outside world, try to connect with the client to verify" },
+                    { PortCheckResult.PortCheckerServerUnexpectedResponse, "The AscensionGameDev port checker server is down and this server may or may not be accessible from the outside world, try to connect with the client to verify" },
+                    { PortCheckResult.Inaccessible, "This server is not accessible from the outside world, please see the Port Forwarding documentation for more information: {0}" },
+                }
+            );
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString DocumentationUrl =
+                @"https://docs.freemmorpgmaker.com/en-US/deploy/forwarding/";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString PortNotOpenTryingUPnP = @"Port {0} is not open, trying UPnP...";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString PortNotOpenUPnPDisabled = @"Port {0} is not open, but UPnP is disabled. Check your router port forwarding and computer firewall configurations.";
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString PortCheckerAndUPnPDisabled =
+                @"The port checker service and UPnP have both been disabled, please verify the server status manually with a client.";
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString UPnPSucceededPortCheckerDisabled =
+                @"UPnP succeeded but the port checker is disabled. Please verify the server status manually using a client.";
+            
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString UPnPFailed =
+                @"UPnP failed, please verify the server status manually using a client.";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString TryingUPnP =
+                @"Trying to open the port using UPnP...";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString ProbablyFirewall =
+                @"UPnP supposedly succeeded but the server is not accessible on port {0}, check the firewall of the machine this server is running on.";
         }
 
         public sealed partial class QuestsNamespace : LocaleNamespace
@@ -1311,6 +1388,9 @@ namespace Intersect.Server.Localization
             public readonly LocalizedString bound = @"This item is bound to you and cannot be sold!";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString TransactionFailed = @"Transaction failed!";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public readonly LocalizedString cantafford = @"Transaction failed due to insufficent funds.";
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
@@ -1318,6 +1398,12 @@ namespace Intersect.Server.Localization
 
             [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public readonly LocalizedString inventoryfull = @"You do not have space to purchase that item!";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString SuccessfullyRemovedItem = @"Successfully took {00} items from slot {01} for player {02} at {03}";
+
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public readonly LocalizedString FailedRemovedItem = @"Failed to take items from slot {00} for player {01}. Quantity to remove: {02} at {03}";
 
         }
 
